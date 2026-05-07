@@ -10,6 +10,7 @@ struct SajuResultView: View {
     @State private var showDaily = false
     @State private var showHan = true
     @State private var showPaywall = false
+    @State private var chatPrompt: String?
     @State private var stage1Text: String?
     @State private var stage2Text: String?
 
@@ -71,6 +72,13 @@ struct SajuResultView: View {
         .sheet(isPresented: $showPaywall) {
             PaywallView().environment(sub)
         }
+        .sheet(item: Binding(
+            get: { chatPrompt.map { ChatPromptItem(text: $0) } },
+            set: { chatPrompt = $0?.text }
+        )) { item in
+            ChatView(user: nil, initialQuestion: item.text)
+                .environment(sub)
+        }
         .task { await loadReadings() }
     }
 
@@ -119,6 +127,8 @@ struct SajuResultView: View {
                 .padding(14)
                 .background(Color(hex: 0xF1E4C7))
                 .clipShape(RoundedRectangle(cornerRadius: 14))
+
+                askMoreButton(question: "제 일간이 \(saju.dayMaster.character)\(saju.dayMaster.korean)인데, 이 일간이 일상에서 어떻게 드러나는지 더 자세히 알려주세요.")
             }
         }
     }
@@ -151,9 +161,27 @@ struct SajuResultView: View {
                     .font(.pretendard(14))
                     .foregroundStyle(.ink2)
                     .lineSpacing(5)
-                PillButton(title: "2단계 풀이 보기 →") {}
+                askMoreButton(question: "제 성격에서 강점과 약점, 사람들과의 관계에서 드러나는 모습을 더 구체적으로 알려주세요.")
             }
         }
+    }
+
+    private func askMoreButton(question: String) -> some View {
+        Button {
+            chatPrompt = question
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 11))
+                Text("이 부분 AI에 더 물어보기")
+                    .font(.pretendard(12, .semibold))
+            }
+            .foregroundStyle(.lavenderDeep)
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .background(Color.lavenderSoft)
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     private var lifeFortuneCard: some View {
@@ -188,4 +216,9 @@ struct SajuResultView: View {
         }
         .padding(.top, 4)
     }
+}
+
+private struct ChatPromptItem: Identifiable {
+    let text: String
+    var id: String { text }
 }

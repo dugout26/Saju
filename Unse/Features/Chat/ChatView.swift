@@ -3,12 +3,41 @@ import SwiftUI
 struct ChatView: View {
     var user: UserProfile?
 
+    @Environment(SubscriptionManager.self) private var sub
     @State private var vm: ChatViewModel
+    @State private var rewardedLoader = RewardedAdLoader()
+    @State private var isWatchingAd = false
     @FocusState private var inputFocused: Bool
 
-    init(user: UserProfile?) {
+    let initialQuestion: String?
+
+    init(user: UserProfile?, initialQuestion: String? = nil) {
         self.user = user
+        self.initialQuestion = initialQuestion
         _vm = State(wrappedValue: ChatViewModel(nickname: user?.nickname ?? "지수"))
+    }
+
+    /// 무료 사용자: 광고 시청 후 1턴. PRO: 즉시.
+    private func sendWithGate() {
+        inputFocused = false
+        if sub.isPremium {
+            Task { await vm.send() }
+            return
+        }
+        // 무료: 광고 시청 → 시청 완료 → 1턴 전송
+        isWatchingAd = true
+        rewardedLoader.loadAndShow(unitId: AdsManager.rewardedUnitId) {
+            isWatchingAd = false
+            Task { await vm.send() }
+        }
+        // 광고 load 실패 시 fallback (1.5초 후 silent grant)
+        Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            if isWatchingAd {
+                isWatchingAd = false
+                await vm.send()
+            }
+        }
     }
 
     var body: some View {
@@ -18,6 +47,12 @@ struct ChatView: View {
                 inputBar
             }
             .background(Color.bg.ignoresSafeArea())
+            .onAppear {
+                if let q = initialQuestion, vm.inputText.isEmpty {
+                    vm.inputText = q
+                    inputFocused = true
+                }
+            }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -88,12 +123,35 @@ struct ChatView: View {
     }
 
     private var inputBar: some View {
+        VStack(spacing: 6) {
+            if !sub.isPremium {
+                HStack(spacing: 6) {
+                    Image(systemName: "play.rectangle.fill")
+                        .font(.system(size: 11))
+                    Text("무료 회원: 광고 1회 시청 = 질문 1회. PRO는 무제한.")
+                        .font(.pretendard(11))
+                }
+                .foregroundStyle(.ink3)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+            }
+            inputBarContent
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.bg)
+        .overlay(alignment: .top) {
+            Divider().opacity(0.5)
+        }
+    }
+
+    private var inputBarContent: some View {
         HStack(spacing: 8) {
             HStack {
                 TextField("궁금한 점을 물어보세요", text: $vm.inputText)
                     .font(.pretendard(14))
                     .focused($inputFocused)
-                    .onSubmit { Task { await vm.send() } }
+                    .onSubmit { sendWithGate() }
             }
             .padding(.horizontal, 16)
             .frame(height: 44)
@@ -101,25 +159,16 @@ struct ChatView: View {
             .clipShape(Capsule())
             .overlay(Capsule().strokeBorder(Color.line, lineWidth: 1))
 
-            Button {
-                inputFocused = false
-                Task { await vm.send() }
-            } label: {
-                Image(systemName: "arrow.right")
+            Button(action: sendWithGate) {
+                Image(systemName: sub.isPremium ? "arrow.right" : "play.rectangle.fill")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(width: 44, height: 44)
                     .background(Color.ink1)
                     .clipShape(Circle())
             }
-            .disabled(vm.inputText.trimmingCharacters(in: .whitespaces).isEmpty || vm.isStreaming)
+            .disabled(vm.inputText.trimmingCharacters(in: .whitespaces).isEmpty || vm.isStreaming || isWatchingAd)
             .opacity(vm.inputText.trimmingCharacters(in: .whitespaces).isEmpty ? 0.4 : 1)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color.bg)
-        .overlay(alignment: .top) {
-            Divider().opacity(0.5)
         }
     }
 }

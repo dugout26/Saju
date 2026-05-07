@@ -26,11 +26,7 @@ struct DailyFortuneView: View {
                 if let snap = snapshot {
                     content(snap: snap)
                 } else if isLoading {
-                    ProgressView("오늘의 운세를 풀고 있어요")
-                        .font(.pretendard(13))
-                        .foregroundStyle(.ink3)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.bg.ignoresSafeArea())
+                    AIAnalysisLoadingView()
                 } else {
                     VStack(spacing: 10) {
                         Text("운세를 불러오지 못했어요")
@@ -323,6 +319,66 @@ struct DailyFortuneView: View {
         case "남쪽": .south
         case "북쪽": .north
         default:    .east   // "중앙" 등 fallback
+        }
+    }
+}
+
+// MARK: - AI 분석 진행 모션 (매일 운세 진입 시)
+
+private struct AIAnalysisLoadingView: View {
+    @State private var step = 0
+    @State private var floating = false
+
+    private let messages = [
+        "오늘의 일진을 읽는 중...",
+        "사주와 일진의 흐름을 비교 중...",
+        "오늘의 행운 색을 고르는 중...",
+        "한 줄 운세를 다듬는 중...",
+    ]
+
+    var body: some View {
+        VStack(spacing: 28) {
+            Spacer()
+
+            // 떠다니는 한자들
+            HStack(spacing: 8) {
+                ForEach(["甲","乙","丙","丁","戊","己"].indices, id: \.self) { i in
+                    Text(["甲","乙","丙","丁","戊","己"][i])
+                        .font(.serifKR(20, .medium))
+                        .foregroundStyle(.lavenderDeep)
+                        .frame(width: 36, height: 36)
+                        .background(Color.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .shadow(color: .lavenderDeep.opacity(0.15), radius: 12, y: 4)
+                        .offset(y: floating ? -8 : 0)
+                        .animation(
+                            .easeInOut(duration: 1.4).repeatForever(autoreverses: true).delay(Double(i) * 0.15),
+                            value: floating
+                        )
+                }
+            }
+            .onAppear { floating = true }
+
+            VStack(spacing: 8) {
+                Text("AI가 오늘의 운세를 풀고 있어요")
+                    .font(.serifKR(20, .semibold))
+                    .foregroundStyle(.ink1)
+                Text(messages[step % messages.count])
+                    .font(.pretendard(13))
+                    .foregroundStyle(.ink3)
+                    .id(step)
+                    .transition(.opacity)
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(LinearGradient(colors: [.lavenderSoft, .bg], startPoint: .top, endPoint: .bottom).ignoresSafeArea())
+        .task {
+            for _ in 0..<20 {
+                try? await Task.sleep(for: .seconds(1.0))
+                withAnimation(.easeInOut(duration: 0.3)) { step += 1 }
+            }
         }
     }
 }
