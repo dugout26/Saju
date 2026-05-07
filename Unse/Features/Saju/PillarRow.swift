@@ -44,17 +44,18 @@ struct PillarCell: View {
 
     var body: some View {
         let colors = element.colors
-        ZStack(alignment: .bottom) {
+        ZStack {
             RoundedRectangle(cornerRadius: 12)
                 .fill(colors.background)
-            Text(char)
-                .font(.serifKR(28, .medium))
-                .foregroundStyle(colors.text)
-            if let sub = subtext {
-                Text(sub)
-                    .font(.pretendard(9, .medium))
-                    .foregroundStyle(colors.text.opacity(0.65))
-                    .padding(.bottom, 4)
+            VStack(spacing: 2) {
+                Text(char)
+                    .font(.serifKR(28, .medium))
+                    .foregroundStyle(colors.text)
+                if let sub = subtext {
+                    Text(sub)
+                        .font(.pretendard(9, .medium))
+                        .foregroundStyle(colors.text.opacity(0.65))
+                }
             }
         }
         .aspectRatio(1, contentMode: .fit)

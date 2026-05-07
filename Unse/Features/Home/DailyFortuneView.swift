@@ -7,46 +7,80 @@ struct DailyFortuneView: View {
     var user: UserProfile?
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(SubscriptionManager.self) private var sub
     @State private var showChat = false
     @State private var showTimeline = false
     @State private var showShare = false
-    @State private var serverOneLiner: String?
+    @State private var showPaywall = false
+    @State private var snapshot: DailyFortuneSnapshot?
+    @State private var tomorrowSnapshot: DailyFortuneSnapshot?
+    @State private var isLoading = true
+    @State private var loadError: String?
+    @State private var rewardedLoader = RewardedAdLoader()
 
     private var nickname: String { user?.nickname ?? "사용자" }
 
-    private var snapshot: DailyFortuneSnapshot? {
-        guard let saju = user?.sajuProfile?.computed else { return nil }
-        let base = DailyFortuneEngine.compute(saju: saju)
-        // 서버 호출 결과(있으면) → mock oneLiner 대체
-        guard let server = serverOneLiner else { return base }
-        return DailyFortuneSnapshot(
-            date: base.date, dayPillar: base.dayPillar, luckyElement: base.luckyElement,
-            theme: base.theme, luckyDirectionKorean: base.luckyDirectionKorean,
-            luckyDirectionHanja: base.luckyDirectionHanja,
-            luckyTimeStartHour: base.luckyTimeStartHour, luckyTimeEndHour: base.luckyTimeEndHour,
-            luckyTimeBranchLabel: base.luckyTimeBranchLabel, luckyNumbers: base.luckyNumbers,
-            avoid: base.avoid, oneLiner: server
-        )
-    }
-
     var body: some View {
         NavigationStack {
-            if let snap = snapshot {
-                content(snap: snap)
-                    .task { await loadOneLiner(snap: snap) }
-            } else {
-                Text("사주 정보가 없습니다")
-                    .foregroundStyle(.ink3)
+            Group {
+                if let snap = snapshot {
+                    content(snap: snap)
+                } else if isLoading {
+                    ProgressView("오늘의 운세를 풀고 있어요")
+                        .font(.pretendard(13))
+                        .foregroundStyle(.ink3)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.bg.ignoresSafeArea())
+                } else {
+                    VStack(spacing: 10) {
+                        Text("운세를 불러오지 못했어요")
+                            .font(.pretendard(14))
+                            .foregroundStyle(.ink2)
+                        if let loadError {
+                            Text(loadError)
+                                .font(.pretendard(11, .medium))
+                                .foregroundStyle(.red.opacity(0.7))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 24)
+                        }
+                        Button("다시 시도") {
+                            Task { await loadFortune() }
+                        }
+                        .font(.pretendard(13, .semibold))
+                        .foregroundStyle(.lavenderDeep)
+                        .padding(.top, 4)
+                    }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.bg.ignoresSafeArea())
+                }
             }
+            .task { await loadFortune() }
         }
     }
 
-    private func loadOneLiner(snap: DailyFortuneSnapshot) async {
-        guard serverOneLiner == nil else { return }   // 한 번만 호출
-        if let dto = try? await APIClient.shared.fetchDailyOneliner(snapshot: snap) {
-            serverOneLiner = dto.one_liner
+    private func loadFortune() async {
+        guard user?.sajuProfile != nil else { isLoading = false; return }
+        isLoading = true
+        loadError = nil
+        let dayPillar = DailyFortuneEngine.dayPillarString()
+        do {
+            let dto = try await APIClient.shared.fetchDailyFortune(dayPillarOfDate: dayPillar)
+            snapshot = DailyFortuneSnapshot(dto: dto)
+        } catch {
+            loadError = error.localizedDescription
+        }
+        isLoading = false
+    }
+
+    private func loadTomorrow() async {
+        guard tomorrowSnapshot == nil else { return }
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        let dayPillar = DailyFortuneEngine.dayPillarString(for: tomorrow)
+        if let dto = try? await APIClient.shared.fetchDailyFortune(
+            dayPillarOfDate: dayPillar,
+            forDate: tomorrow
+        ) {
+            tomorrowSnapshot = DailyFortuneSnapshot(dto: dto)
         }
     }
 
@@ -54,11 +88,16 @@ struct DailyFortuneView: View {
         let theme = snap.theme
         return ScrollView {
             VStack(spacing: 12) {
-                dateGreeting(theme: theme)
+                dateGreeting(snap: snap, theme: theme)
                 oneLinerCard(snap: snap, theme: theme)
                 luckyGrid(snap: snap, theme: theme)
                 avoidCard(snap: snap)
                 ctaButtons(theme: theme)
+                if !sub.isPremium {
+                    BannerAdView(unitId: AdsManager.bannerUnitId)
+                        .frame(height: 50)
+                        .padding(.top, 8)
+                }
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 40)
@@ -78,11 +117,15 @@ struct DailyFortuneView: View {
         .navigationDestination(isPresented: $showChat)     { ChatView(user: user) }
         .navigationDestination(isPresented: $showTimeline) { TimelineView(user: user) }
         .sheet(isPresented: $showShare)                    { ShareCardView(theme: theme, nickname: nickname) }
+        .sheet(isPresented: $showPaywall)                  { PaywallView().environment(sub) }
+        .sheet(item: $tomorrowSnapshot) { snap in
+            TomorrowFortuneSheet(snapshot: snap)
+        }
     }
 
     // MARK: - Sub-views
 
-    private func dateGreeting(theme: FortuneTheme) -> some View {
+    private func dateGreeting(snap: DailyFortuneSnapshot, theme: FortuneTheme) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(Date(), format: .dateTime.year().month().day().weekday(.wide))
                 .font(.pretendard(12, .medium))
@@ -90,7 +133,7 @@ struct DailyFortuneView: View {
 
             Group {
                 Text("오늘은 ") +
-                Text(theme.name).foregroundStyle(theme.accent) +
+                Text(snap.luckyColorName).foregroundStyle(theme.accent) +
                 Text("의\n기운이 도는 하루")
             }
             .font(.serifKR(26, .semibold))
@@ -126,14 +169,14 @@ struct DailyFortuneView: View {
 
     private func luckyGrid(snap: DailyFortuneSnapshot, theme: FortuneTheme) -> some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-            luckyColorCard(theme: theme)
+            luckyColorCard(snap: snap, theme: theme)
             luckyDirectionCard(snap: snap, theme: theme)
             luckyTimeCard(snap: snap)
             luckyNumberCard(snap: snap, theme: theme)
         }
     }
 
-    private func luckyColorCard(theme: FortuneTheme) -> some View {
+    private func luckyColorCard(snap: DailyFortuneSnapshot, theme: FortuneTheme) -> some View {
         Card(padding: 16) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("행운의 색")
@@ -142,17 +185,13 @@ struct DailyFortuneView: View {
                     .tracking(0.3)
                 HStack(spacing: 10) {
                     RoundedRectangle(cornerRadius: 14)
-                        .fill(theme.soft)
+                        .fill(Color(hexString: snap.luckyColorHex) ?? theme.soft)
                         .frame(width: 44, height: 44)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .fill(theme.accent.opacity(0.3))
-                        )
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(theme.name)
+                        Text(snap.luckyColorName)
                             .font(.serifKR(16, .semibold))
                             .foregroundStyle(.ink1)
-                        Text(theme.hex)
+                        Text(snap.luckyColorHex)
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundStyle(.ink3)
                     }
@@ -170,11 +209,10 @@ struct DailyFortuneView: View {
                     .foregroundStyle(.ink3)
                     .tracking(0.3)
                 HStack(spacing: 10) {
-                    Compass(direction: compassDirection(for: snap.luckyElement), accent: theme.accent, soft: theme.soft)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(snap.luckyDirectionKorean).font(.serifKR(16, .semibold)).foregroundStyle(.ink1)
-                        Text(snap.luckyDirectionHanja).font(.pretendard(11)).foregroundStyle(.ink3)
-                    }
+                    Compass(direction: compassDirection(for: snap.luckyDirectionKorean), accent: theme.accent, soft: theme.soft)
+                    Text(snap.luckyDirectionKorean)
+                        .font(.serifKR(16, .semibold))
+                        .foregroundStyle(.ink1)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -191,9 +229,10 @@ struct DailyFortuneView: View {
                 Text(String(format: "%02d:00 — %02d:00", snap.luckyTimeStartHour, snap.luckyTimeEndHour))
                     .font(.serifKR(18, .semibold))
                     .foregroundStyle(.ink1)
-                Text(snap.luckyTimeBranchLabel)
+                Text(snap.luckyTimeLabel)
                     .font(.pretendard(11))
                     .foregroundStyle(.ink3)
+                    .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -255,19 +294,122 @@ struct DailyFortuneView: View {
             }
             HStack(spacing: 8) {
                 OutlineButton(title: "주간 흐름") { showTimeline = true }
-                OutlineButton(title: "내일 미리보기") {}
+                OutlineButton(title: "내일 미리보기") {
+                    if sub.isPremium {
+                        Task { await loadTomorrow() }
+                    } else {
+                        // 광고 시청 후 보상으로 내일 운세. load 실패 시에도 silent grant.
+                        var granted = false
+                        rewardedLoader.loadAndShow(unitId: AdsManager.rewardedUnitId) {
+                            granted = true
+                            Task { await loadTomorrow() }
+                        }
+                        // 광고 자체가 안 뜨면 (load fail) 1.5초 후 silent grant
+                        Task {
+                            try? await Task.sleep(for: .seconds(1.5))
+                            if !granted { await loadTomorrow() }
+                        }
+                    }
+                }
             }
         }
         .padding(.top, 8)
     }
 
-    private func compassDirection(for element: Element) -> CompassDirection {
-        switch element {
-        case .wood:  .east
-        case .fire:  .south
-        case .metal: .west
-        case .water: .north
-        case .earth: .east   // Compass에 center 없음 → east로 fallback
+    private func compassDirection(for korean: String) -> CompassDirection {
+        switch korean {
+        case "동쪽": .east
+        case "서쪽": .west
+        case "남쪽": .south
+        case "북쪽": .north
+        default:    .east   // "중앙" 등 fallback
         }
+    }
+}
+
+// MARK: - TomorrowFortuneSheet (간단 미리보기)
+
+private struct TomorrowFortuneSheet: View {
+    let snapshot: DailyFortuneSnapshot
+    @Environment(\.dismiss) private var dismiss
+
+    private var tomorrowString: String {
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ko_KR")
+        f.dateFormat = "M월 d일 EEEE"
+        return f.string(from: tomorrow)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    Text(tomorrowString)
+                        .font(.pretendard(13, .medium))
+                        .foregroundStyle(.ink3)
+                        .padding(.top, 8)
+                    Text(snapshot.oneLiner)
+                        .font(.serifKR(20, .medium))
+                        .foregroundStyle(.ink1)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(6)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 24)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .padding(.horizontal, 16)
+
+                    VStack(spacing: 8) {
+                        infoRow(icon: "🎨", label: "행운의 색", value: snapshot.luckyColorName)
+                        infoRow(icon: "🧭", label: "행운의 방향", value: snapshot.luckyDirectionKorean)
+                        infoRow(icon: "⏰", label: "행운의 시간", value: snapshot.luckyTimeLabel)
+                        infoRow(icon: "🔢", label: "행운의 숫자", value: snapshot.luckyNumbers.map(String.init).joined(separator: " · "))
+                        infoRow(icon: "⚠️", label: "피해야 할 것", value: snapshot.avoid)
+                    }
+                    .padding(.horizontal, 16)
+                }
+                .padding(.bottom, 24)
+            }
+            .background(snapshot.theme.gradient.ignoresSafeArea())
+            .navigationTitle("내일 미리보기")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("닫기") { dismiss() }
+                        .font(.pretendard(15))
+                        .foregroundStyle(.ink1)
+                }
+            }
+        }
+    }
+
+    private func infoRow(icon: String, label: String, value: String) -> some View {
+        HStack(spacing: 12) {
+            Text(icon).font(.system(size: 18))
+            Text(label)
+                .font(.pretendard(13))
+                .foregroundStyle(.ink3)
+            Spacer()
+            Text(value)
+                .font(.pretendard(14, .semibold))
+                .foregroundStyle(.ink1)
+                .multilineTextAlignment(.trailing)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 12)
+        .background(Color.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+// MARK: - Color hex string init
+
+private extension Color {
+    init?(hexString: String) {
+        var s = hexString.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.hasPrefix("#") { s.removeFirst() }
+        guard s.count == 6, let v = UInt32(s, radix: 16) else { return nil }
+        self.init(hex: v)
     }
 }

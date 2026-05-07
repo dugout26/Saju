@@ -76,14 +76,22 @@ struct PaywallView: View {
                 }
 
                 VStack(spacing: 6) {
-                    Text("사주 PRO")
+                    Text("하루결 PRO")
                         .font(.serifKR(28, .semibold))
                         .foregroundStyle(.ink1)
-                    Text("더 깊이 있는 운세 분석을\n경험해보세요")
+                    Text("가족·친구 사주 4명까지\n자세한 풀이와 매일 운세")
                         .font(.pretendard(14))
                         .foregroundStyle(.ink2)
                         .multilineTextAlignment(.center)
                         .lineSpacing(4)
+
+                    Text("🎉 오픈 특가 — 평생 ₩4,900 lock-in")
+                        .font(.pretendard(11, .semibold))
+                        .foregroundStyle(Color.lavenderDeep)
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .background(Color.lavenderSoft)
+                        .clipShape(Capsule())
+                        .padding(.top, 6)
                 }
             }
             .padding(.top, 24)
@@ -93,29 +101,29 @@ struct PaywallView: View {
     private var featureList: some View {
         VStack(spacing: 12) {
             featureRow(
+                icon: "person.3.fill",
+                title: "가족·친구 사주 4명까지",
+                description: "본인 + 추가 3명까지 등록·관리"
+            )
+            featureRow(
                 icon: "sparkles",
                 title: "무제한 AI 챗봇",
                 description: "사주에 대한 모든 궁금증을 AI와 함께"
             )
             featureRow(
-                icon: "calendar.badge.clock",
-                title: "대운 상세 분석",
-                description: "10년 주기 대운의 깊이 있는 해석"
+                icon: "chart.line.uptrend.xyaxis",
+                title: "평생운 + 5단계 풀이",
+                description: "10년 대운 흐름과 평생 종합 분석"
             )
             featureRow(
-                icon: "chart.line.uptrend.xyaxis",
-                title: "2단계·3단계 사주 풀이",
-                description: "월운·일운까지 세밀하게 분석"
+                icon: "rectangle.stack.badge.person.crop",
+                title: "영역별 자세한 풀이",
+                description: "직업·금전·연애·건강 4영역 분석"
             )
             featureRow(
                 icon: "bell.badge",
-                title: "매일 아침 운세 알림",
-                description: "하루를 시작하기 전에 오늘의 운세 확인"
-            )
-            featureRow(
-                icon: "square.and.arrow.up",
-                title: "운세 카드 공유",
-                description: "오늘의 운세를 이미지로 저장하고 공유"
+                title: "매일 운세 자세히",
+                description: "오늘 시간대별 행운 + 광고 없음"
             )
         }
     }

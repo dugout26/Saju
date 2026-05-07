@@ -4,8 +4,10 @@ import Charts
 struct TimelineView: View {
     var user: UserProfile?
 
+    @Environment(SubscriptionManager.self) private var sub
     @State private var daeWoon: [DaeWoon] = []
     @State private var selectedDaeWoon: DaeWoon?
+    @State private var showPaywall = false
 
     private var currentAge: Int {
         guard let profile = user?.sajuProfile else { return 30 }
@@ -16,8 +18,18 @@ struct TimelineView: View {
         ScrollView {
             VStack(spacing: 16) {
                 headerSection
-                chartSection
-                decadeList
+                ZStack(alignment: .center) {
+                    VStack(spacing: 16) {
+                        chartSection
+                        decadeList
+                    }
+                    .blur(radius: sub.isPremium ? 0 : 10)
+                    .allowsHitTesting(sub.isPremium)
+
+                    if !sub.isPremium {
+                        proLockCard
+                    }
+                }
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 40)
@@ -26,6 +38,34 @@ struct TimelineView: View {
         .navigationTitle("평생 흐름")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { loadDaeWoon() }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView().environment(sub)
+        }
+    }
+
+    private var proLockCard: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 26))
+                .foregroundStyle(.lavenderDeep)
+            Text("평생운 그래프는 PRO 전용")
+                .font(.serifKR(17, .semibold))
+                .foregroundStyle(.ink1)
+            Text("10년 단위 대운 흐름과\n시기별 조언을 자세히 보세요")
+                .font(.pretendard(12))
+                .foregroundStyle(.ink2)
+                .multilineTextAlignment(.center)
+                .lineSpacing(3)
+            PrimaryButton(title: "PRO로 자세히 보기", color: .lavenderDeep) {
+                showPaywall = true
+            }
+            .padding(.top, 4)
+        }
+        .padding(20)
+        .background(Color.surface.opacity(0.96))
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.08), radius: 20, y: 6)
+        .padding(.horizontal, 8)
     }
 
     // MARK: - Sub-views

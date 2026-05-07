@@ -1,5 +1,15 @@
 import SwiftUI
 
+// MARK: - ShareSheet (UIActivityViewController wrapping)
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
 struct ShareCardView: View {
     let theme: FortuneTheme
     let nickname: String
@@ -7,6 +17,9 @@ struct ShareCardView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isRendering = false
     @State private var renderedImage: UIImage?
+    @State private var shareItems: [Any] = []
+    @State private var showShareSheet = false
+    @State private var saveResult: String?
 
     var body: some View {
         NavigationStack {
@@ -37,6 +50,14 @@ struct ShareCardView: View {
                         .foregroundStyle(.ink1)
                 }
             }
+            .sheet(isPresented: $showShareSheet) {
+                ShareSheet(items: shareItems)
+            }
+            .alert("저장 결과", isPresented: .constant(saveResult != nil), actions: {
+                Button("확인") { saveResult = nil }
+            }, message: {
+                Text(saveResult ?? "")
+            })
         }
     }
 
@@ -60,23 +81,19 @@ struct ShareCardView: View {
     private func saveImage() async {
         isRendering = true
         defer { isRendering = false }
-
-        let image = renderCard()
-        guard let image else { return }
-
+        guard let image = renderCard() else {
+            saveResult = "이미지 생성에 실패했어요"
+            return
+        }
         UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+        saveResult = "사진 앨범에 저장됐어요"
     }
 
     @MainActor
     private func shareImage() async {
-        let image = renderCard()
-        guard let image else { return }
-
-        let av = UIActivityViewController(activityItems: [image], applicationActivities: nil)
-        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let root = scene.windows.first?.rootViewController {
-            root.present(av, animated: true)
-        }
+        guard let image = renderCard() else { return }
+        shareItems = [image]
+        showShareSheet = true
     }
 
     @MainActor

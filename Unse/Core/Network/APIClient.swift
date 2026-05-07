@@ -15,15 +15,26 @@ actor APIClient {
         Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String ?? ""
     }()
 
-    // MARK: - Daily Oneliner (한 줄 운세 + daily_fortunes 캐싱)
+    // MARK: - Daily Fortune (LLM이 색·방향·시간·숫자·한줄·피해야할것 모두 생성)
     //
-    // 클라이언트가 DailyFortuneEngine으로 계산한 lucky_* 값을 함께 전송.
-    // Edge Function은 OpenAI 호출로 한 줄만 생성하고 모든 값을 daily_fortunes에 upsert.
+    // 클라이언트는 오늘 일진(day_pillar_of_date)만 계산해서 전송.
+    // Edge Function이 자평명리 분석으로 매일 다른 결과 생성 + daily_fortunes 캐싱.
 
-    func fetchDailyOneliner(snapshot: DailyFortuneSnapshot) async throws -> DailyFortuneDTO {
-        let body = DailyOnelinerRequestBody(snapshot: snapshot)
-        var request = try await makeRequest(endpoint: .dailyOneliner)
-        request.httpBody = try JSONEncoder().encode(body)
+    func fetchDailyFortune(dayPillarOfDate: String, forDate: Date? = nil) async throws -> DailyFortuneDTO {
+        struct Body: Encodable {
+            let day_pillar_of_date: String
+            let for_date: String?
+        }
+        let dateStr: String? = forDate.map {
+            let f = ISO8601DateFormatter()
+            f.formatOptions = [.withFullDate]
+            return f.string(from: $0)
+        }
+        var request = try await makeRequest(endpoint: .dailyFortune)
+        request.httpBody = try JSONEncoder().encode(Body(
+            day_pillar_of_date: dayPillarOfDate,
+            for_date: dateStr
+        ))
         let (data, _) = try await session.data(for: request)
         return try JSONDecoder().decode(DailyFortuneDTO.self, from: data)
     }
@@ -71,6 +82,19 @@ actor APIClient {
         request.httpBody = try JSONEncoder().encode(["stage": stage])
         let (data, _) = try await session.data(for: request)
         return try JSONDecoder().decode(SajuReadingDTO.self, from: data).content
+    }
+
+    // MARK: - App Config (강제 업데이트 + 스토어 URL)
+
+    func fetchAppConfig() async throws -> AppConfigDTO {
+        let row: AppConfigDTO = try await SupabaseManager.shared
+            .from("app_config")
+            .select()
+            .eq("id", value: 1)
+            .single()
+            .execute()
+            .value
+        return row
     }
 
     // MARK: - Push Token Registration
@@ -133,35 +157,16 @@ struct DailyFortuneDTO: Decodable {
     let date: String
     let day_pillar_of_date: String
     let one_liner: String
-    let lucky_color_primary: String
-    let lucky_color_secondary: String?
+    let lucky_color_primary: String      // hex
+    let lucky_color_secondary: String?   // 색 이름 (서버 호환)
+    let lucky_color_name: String?        // 색 이름 (신규)
+    let lucky_color_theme: String?       // "lavender|peach|mint|cream"
     let lucky_direction: String
-    let lucky_time_start: String
+    let lucky_time_start: String         // "HH:MM:SS"
     let lucky_time_end: String
+    let lucky_time_label: String?
     let lucky_numbers: [Int]
     let avoid: String
-}
-
-struct DailyOnelinerRequestBody: Encodable {
-    let day_pillar_of_date: String
-    let lucky_color_primary: String
-    let lucky_color_secondary: String?
-    let lucky_direction: String
-    let lucky_time_start: String
-    let lucky_time_end: String
-    let lucky_numbers: [Int]
-    let avoid: String
-
-    init(snapshot: DailyFortuneSnapshot) {
-        self.day_pillar_of_date = snapshot.dayPillar.characters
-        self.lucky_color_primary = snapshot.theme.hex
-        self.lucky_color_secondary = nil
-        self.lucky_direction = snapshot.luckyDirectionKorean
-        self.lucky_time_start = String(format: "%02d:00", snapshot.luckyTimeStartHour)
-        self.lucky_time_end = String(format: "%02d:00", snapshot.luckyTimeEndHour)
-        self.lucky_numbers = snapshot.luckyNumbers
-        self.avoid = snapshot.avoid
-    }
 }
 
 struct ChatRequestBody: Encodable {
@@ -170,6 +175,20 @@ struct ChatRequestBody: Encodable {
 
 struct SajuReadingDTO: Decodable {
     let content: String
+}
+
+struct AppConfigDTO: Decodable, Sendable {
+    let min_ios_version: String
+    let min_android_version: String
+    let app_store_url: String?
+    let play_store_url: String?
+    let force_update_message: String
+
+    /// Bundle.main 의 CFBundleShortVersionString이 min_ios_version 보다 낮은지.
+    func requiresForceUpdate() -> Bool {
+        let current = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
+        return current.compare(min_ios_version, options: .numeric) == .orderedAscending
+    }
 }
 
 enum APIError: LocalizedError {

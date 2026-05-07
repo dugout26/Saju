@@ -4,11 +4,11 @@ import SwiftUI
 
 struct OnboardingView: View {
     @State private var slide = 0
-    @State private var showBirthInfo = false
+    @State private var showLogin = false
 
     private let slides: [OnboardSlide] = [
         .init(eyebrow: "매일 아침",
-              titleA: "당신의", titleB: "행운 색을",
+              titleA: "오늘의", titleB: "행운 색",
               subtitle: "사주 8글자에서 풀어낸\n오늘의 색·방향·시간",
               art: .colors),
         .init(eyebrow: "AI 해설",
@@ -29,8 +29,8 @@ struct OnboardingView: View {
                 copySection
             }
             .background(Color.bg.ignoresSafeArea())
-            .navigationDestination(isPresented: $showBirthInfo) {
-                BirthInfoView()
+            .navigationDestination(isPresented: $showLogin) {
+                LoginView()
             }
         }
     }
@@ -38,7 +38,7 @@ struct OnboardingView: View {
     private var skipButton: some View {
         HStack {
             Spacer()
-            Button("건너뛰기") { showBirthInfo = true }
+            Button("건너뛰기") { showLogin = true }
                 .font(.pretendard(15, .medium))
                 .foregroundStyle(.ink3)
                 .padding(.horizontal, Spacing.lg)
@@ -85,7 +85,7 @@ struct OnboardingView: View {
                 if slide < 2 {
                     withAnimation { slide += 1 }
                 } else {
-                    showBirthInfo = true
+                    showLogin = true
                 }
             }
         }

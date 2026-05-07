@@ -15,6 +15,7 @@ struct Segment: View {
                         .foregroundStyle(selection == opt ? .ink1 : .ink3)
                         .frame(maxWidth: .infinity)
                         .frame(height: 44)
+                        .contentShape(Rectangle())
                         .background(
                             Group {
                                 if selection == opt {

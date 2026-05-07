@@ -6,8 +6,10 @@ struct SajuResultView: View {
     let nickname: String
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(SubscriptionManager.self) private var sub
     @State private var showDaily = false
     @State private var showHan = true
+    @State private var showPaywall = false
     @State private var stage1Text: String?
     @State private var stage2Text: String?
 
@@ -35,6 +37,7 @@ struct SajuResultView: View {
                 pillarsCard
                 elementCard
                 tendencyCard
+                lifeFortuneCard
                 ctaButton
             }
             .padding(.horizontal, 20)
@@ -64,6 +67,9 @@ struct SajuResultView: View {
         }
         .navigationDestination(isPresented: $showDaily) {
             DailyFortuneView(user: nil)
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView().environment(sub)
         }
         .task { await loadReadings() }
     }
@@ -104,7 +110,7 @@ struct SajuResultView: View {
                     Text("일간 (나의 본성)")
                         .font(.pretendard(11, .semibold))
                         .foregroundStyle(Color(hex: 0x7E6228))
-                    Text(stage1Text ?? "분석 중...")
+                    Text(.init(stage1Text ?? "분석 중..."))
                         .font(.serifKR(15, .medium))
                         .foregroundStyle(.ink1)
                         .lineSpacing(3)
@@ -141,11 +147,37 @@ struct SajuResultView: View {
                 Text("성향 한 줄")
                     .font(.pretendard(15, .semibold))
                     .foregroundStyle(.ink1)
-                Text(stage2Text ?? "분석 중...")
+                Text(.init(stage2Text ?? "분석 중..."))
                     .font(.pretendard(14))
                     .foregroundStyle(.ink2)
                     .lineSpacing(5)
                 PillButton(title: "2단계 풀이 보기 →") {}
+            }
+        }
+    }
+
+    private var lifeFortuneCard: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("평생운 종합 풀이")
+                        .font(.pretendard(15, .semibold))
+                        .foregroundStyle(.ink1)
+                    Spacer()
+                    if !sub.isPremium {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.lavenderDeep)
+                    }
+                }
+                Text("일생의 큰 흐름과 시기별 조언을\n자평명리 정통 방식으로 자세히 풀어드립니다.")
+                    .font(.pretendard(13))
+                    .foregroundStyle(.ink2)
+                    .lineSpacing(4)
+                PillButton(title: sub.isPremium ? "5단계 풀이 보기 →" : "PRO로 잠금 해제 →") {
+                    if !sub.isPremium { showPaywall = true }
+                    // TODO(Phase D): PRO일 때 stage 5 fetch + 별도 화면
+                }
             }
         }
     }

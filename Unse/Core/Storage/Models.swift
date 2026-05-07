@@ -16,6 +16,7 @@ final class UserProfile {
     var createdAt: Date
 
     @Relationship(deleteRule: .cascade) var sajuProfile: SajuProfile?
+    @Relationship(deleteRule: .cascade) var savedSajus: [SajuProfile] = []
 
     init(
         nickname: String,
@@ -42,6 +43,9 @@ final class UserProfile {
 @Model
 final class SajuProfile {
     @Attribute(.unique) var id: UUID
+    var displayName: String = ""   // "본인" 또는 "엄마", "이수정" 등
+    var relation: String = ""      // "본인" | "가족" | "친구" | "연인" | "기타"
+    var lastModifiedAt: Date = Date()
     var birthCalendar: String      // "solar" | "lunar"
     var birthYear: Int
     var birthMonth: Int
@@ -59,8 +63,12 @@ final class SajuProfile {
     var daeWoonJSON: String        // [{startAge, pillar, startYear}]
     var fortuneTheme: String       // "lavender"|"peach"|"mint"
 
-    init(input: BirthInput, saju: SajuComputed, daeWoon: [DaeWoon]) {
+    init(input: BirthInput, saju: SajuComputed, daeWoon: [DaeWoon],
+         displayName: String = "본인", relation: String = "본인") {
         self.id = UUID()
+        self.displayName = displayName
+        self.relation = relation
+        self.lastModifiedAt = Date()
         self.birthCalendar = input.calendar.rawValue
         self.birthYear = input.year
         self.birthMonth = input.month

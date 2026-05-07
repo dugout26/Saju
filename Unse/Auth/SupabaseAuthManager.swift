@@ -102,6 +102,19 @@ enum SupabaseAuthManager {
         try await SupabaseManager.shared.auth.signOut()
     }
 
+    /// 출생정보 입력 후 닉네임만 update (Apple fullName 대신).
+    static func updateNickname(_ nickname: String) async throws {
+        guard let userId = try? await SupabaseManager.shared.auth.session.user.id else {
+            throw AuthError.invalidCredential
+        }
+        struct Update: Encodable { let nickname: String }
+        try await SupabaseManager.shared
+            .from("users")
+            .update(Update(nickname: nickname))
+            .eq("id", value: userId)
+            .execute()
+    }
+
     // MARK: - Helpers
 
     private static func upsertUser(id: UUID, nickname: String, authProvider: String) async throws {

@@ -7,8 +7,8 @@ struct AnalyzingView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var step = 0
     @State private var floating = false
-    @State private var showResult = false
     @State private var computedResult: (saju: SajuComputed, daeWoon: [DaeWoon])?
+    @State private var errorMessage: String?
 
     private let steps = [
         "생년월일을 천간지지로 변환",
@@ -38,15 +38,14 @@ struct AnalyzingView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationBarBackButtonHidden()
-        .navigationDestination(isPresented: $showResult) {
-            if let r = computedResult {
-                SajuResultView(
-                    saju: r.saju,
-                    daeWoon: r.daeWoon,
-                    nickname: vm.input.nickname
-                )
+        .alert("저장 중 오류가 발생했어요", isPresented: .constant(errorMessage != nil), actions: {
+            Button("다시 시도") {
+                errorMessage = nil
+                Task { await runAnimation() }
             }
-        }
+        }, message: {
+            Text(errorMessage ?? "")
+        })
         .task { await runAnimation() }
     }
 
@@ -118,8 +117,9 @@ struct AnalyzingView: View {
         try? await Task.sleep(for: .seconds(0.5))
 
         do {
-            // Apple Sign in → Supabase 로그인 + users upsert
-            _ = try await SupabaseAuthManager.signInWithApple(nickname: vm.input.nickname)
+            // 인증은 LoginView에서 끝남. 여기서는 사주 데이터 동기화만.
+            // 닉네임은 vm.input.nickname → users 테이블 update.
+            try await SupabaseAuthManager.updateNickname(vm.input.nickname)
 
             // Supabase saju_profiles upsert
             try await SupabaseAuthManager.upsertSajuProfile(
@@ -128,17 +128,18 @@ struct AnalyzingView: View {
                 daeWoon: result.daeWoon
             )
 
-            // SwiftData 로컬 캐시 (UserProfile + SajuProfile)
+            // SwiftData 로컬 캐시 (UserProfile + SajuProfile).
+            // 저장되면 RootView가 @Query로 감지해서 자동으로 MainTabView(홈)로 swap.
             let user = UserProfile(nickname: vm.input.nickname, authProvider: "apple")
             let profile = SajuProfile(input: vm.input, saju: result.saju, daeWoon: result.daeWoon)
             user.sajuProfile = profile
             modelContext.insert(user)
             try? modelContext.save()
 
-            showResult = true
+            // 푸시 권한 요청 — 사용자가 거부해도 진행
+            _ = await PushManager.shared.requestPermission()
         } catch {
-            print("[Onboarding] sign-in/save failed: \(error)")
-            // TODO(Phase C): 사용자에게 에러 alert
+            errorMessage = error.localizedDescription
         }
     }
 }

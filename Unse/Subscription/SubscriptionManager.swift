@@ -127,6 +127,13 @@ final class SubscriptionManager {
 
     var isPremium: Bool { status == .premium || status == .trial }
 
+    #if DEBUG
+    /// 개발/테스트용 — 실제 결제 없이 PRO 토글
+    func debugTogglePremium() {
+        status = (status == .premium) ? .free : .premium
+    }
+    #endif
+
     // MARK: - Helpers
 
     private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {

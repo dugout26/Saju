@@ -17,10 +17,14 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 profileSection
+                sajuListSection
                 subscriptionSection
                 notificationSection
                 supportSection
                 dangerSection
+                #if DEBUG
+                debugSection
+                #endif
             }
             .listStyle(.insetGrouped)
             .background(Color.bg.ignoresSafeArea())
@@ -64,6 +68,29 @@ struct SettingsView: View {
                 }
             }
             .padding(.vertical, 6)
+        }
+    }
+
+    @ViewBuilder
+    private var sajuListSection: some View {
+        if let user {
+            Section(header: Text("사주")) {
+                NavigationLink {
+                    SajuListView(user: user)
+                        .environment(sub)
+                } label: {
+                    HStack {
+                        Label("사주 관리", systemImage: "person.text.rectangle")
+                            .font(.pretendard(14))
+                            .foregroundStyle(.ink1)
+                        Spacer()
+                        let count = (user.sajuProfile != nil ? 1 : 0) + user.savedSajus.count
+                        Text("\(count)명")
+                            .font(.pretendard(13))
+                            .foregroundStyle(.ink3)
+                    }
+                }
+            }
         }
     }
 
@@ -122,6 +149,9 @@ struct SettingsView: View {
             .onChange(of: pushEnabled) { _, newValue in
                 user?.pushEnabled = newValue
                 try? modelContext.save()
+                if newValue {
+                    Task { _ = await PushManager.shared.requestPermission() }
+                }
             }
 
             if pushEnabled {
@@ -203,6 +233,22 @@ struct SettingsView: View {
             }
         }
     }
+
+    #if DEBUG
+    @ViewBuilder
+    private var debugSection: some View {
+        Section(header: Text("DEBUG")) {
+            Button {
+                sub.debugTogglePremium()
+            } label: {
+                Label(sub.isPremium ? "PRO 끄기 (현재: ON)" : "PRO 켜기 (현재: OFF)",
+                      systemImage: sub.isPremium ? "star.fill" : "star")
+                    .font(.pretendard(13))
+                    .foregroundStyle(.lavenderDeep)
+            }
+        }
+    }
+    #endif
 
     // MARK: - Helpers
 

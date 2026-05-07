@@ -8,14 +8,14 @@ enum Endpoint {
         return URL(string: raw.isEmpty ? "https://placeholder.invalid" : raw)!
     }()
 
-    case dailyOneliner
+    case dailyFortune
     case sajuReading
     case chat
     case registerPushToken
 
     var url: URL {
         switch self {
-        case .dailyOneliner:    return Self.base.appending(path: "/functions/v1/daily-oneliner")
+        case .dailyFortune:     return Self.base.appending(path: "/functions/v1/daily-fortune")
         case .sajuReading:      return Self.base.appending(path: "/functions/v1/saju-reading")
         case .chat:             return Self.base.appending(path: "/functions/v1/chat")
         case .registerPushToken: return Self.base.appending(path: "/functions/v1/register-push-token")
