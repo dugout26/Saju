@@ -3,6 +3,12 @@ import SwiftData
 
 struct AnalyzingView: View {
     let vm: BirthInfoViewModel
+    /// 외부 저장 로직. 제공 시 default(UserProfile insert) 대신 호출 — edit 흐름에서 사용.
+    var onSave: ((SajuComputed, [DaeWoon]) async throws -> Void)? = nil
+    /// 분석 완료 시 호출. 제공 안 하면 RootView의 @Query 자동 swap에 위임 (onboarding).
+    var onComplete: (() -> Void)? = nil
+    /// 화면 제목. edit 흐름에선 "사주를 다시 풀고 있어요"로.
+    var title: String = "사주를 풀고 있어요"
 
     @Environment(\.modelContext) private var modelContext
     @State private var step = 0
@@ -28,7 +34,7 @@ struct AnalyzingView: View {
                 floatingChars
                     .padding(.bottom, 36)
 
-                Text("사주를 풀고 있어요")
+                Text(title)
                     .font(.serifKR(22, .semibold))
                     .foregroundStyle(.ink1)
 
@@ -109,40 +115,63 @@ struct AnalyzingView: View {
         let result = vm.compute()
         computedResult = result
 
+        // 저장은 animation과 병렬로 시작 (사용자는 4.4s 동안 step animation 봄)
+        let saveTask = Task { try await performSave(result: result) }
+
         for i in steps.indices {
             try? await Task.sleep(for: .seconds(1.1))
             withAnimation { step = i + 1 }
         }
 
-        try? await Task.sleep(for: .seconds(0.5))
-
+        // 저장 완료 대기. 실패 시 alert 표시 + 진행 중단.
         do {
-            // 인증은 LoginView에서 끝남. 여기서는 사주 데이터 동기화만.
-            // 닉네임은 vm.input.nickname → users 테이블 update.
-            try await SupabaseAuthManager.updateNickname(vm.input.nickname)
-
-            // Supabase saju_profiles upsert
-            try await SupabaseAuthManager.upsertSajuProfile(
-                input: vm.input,
-                saju: result.saju,
-                daeWoon: result.daeWoon
-            )
-
-            // SwiftData 로컬 캐시 (UserProfile + SajuProfile).
-            // 저장되면 RootView가 @Query로 감지해서 자동으로 MainTabView(홈)로 swap.
-            let user = UserProfile(nickname: vm.input.nickname, authProvider: "apple")
-            let profile = SajuProfile(
-                input: vm.input, saju: result.saju, daeWoon: result.daeWoon,
-                displayName: vm.input.nickname, relation: "본인"
-            )
-            user.sajuProfile = profile
-            modelContext.insert(user)
-            try? modelContext.save()
-
-            // 푸시 권한 요청 — 사용자가 거부해도 진행
-            _ = await PushManager.shared.requestPermission()
+            try await saveTask.value
         } catch {
             errorMessage = error.localizedDescription
+            return
         }
+
+        // 저장 끝났으면 saju-reading 1, 2단계 백그라운드 prefetch.
+        // 결과 무시 — 응답이 saju_readings에 캐시되므로 SajuResultView 진입 시 자동 hit.
+        let nickname = vm.input.nickname
+        let computed = result.saju
+        Task {
+            async let stage1 = APIClient.shared.fetchSajuReading(stage: 1, saju: computed, nickname: nickname)
+            async let stage2 = APIClient.shared.fetchSajuReading(stage: 2, saju: computed, nickname: nickname)
+            _ = try? await (stage1, stage2)
+        }
+
+        try? await Task.sleep(for: .seconds(0.5))
+
+        // edit 흐름: onComplete가 있으면 호출 (외부에서 dismiss 처리)
+        // onboarding 흐름: onComplete 없음. RootView @Query가 새 UserProfile 감지해서 자동 swap
+        onComplete?()
+    }
+
+    private func performSave(result: (saju: SajuComputed, daeWoon: [DaeWoon])) async throws {
+        // edit 흐름: 외부 onSave가 SwiftData 업데이트 + Supabase 동기화 + 캐시 무효화 처리
+        if let onSave {
+            try await onSave(result.saju, result.daeWoon)
+            return
+        }
+
+        // onboarding 흐름 (default): 새 user 생성
+        try await SupabaseAuthManager.updateNickname(vm.input.nickname)
+        try await SupabaseAuthManager.upsertSajuProfile(
+            input: vm.input,
+            saju: result.saju,
+            daeWoon: result.daeWoon
+        )
+
+        let user = UserProfile(nickname: vm.input.nickname, authProvider: "apple")
+        let profile = SajuProfile(
+            input: vm.input, saju: result.saju, daeWoon: result.daeWoon,
+            displayName: vm.input.nickname, relation: "본인"
+        )
+        user.sajuProfile = profile
+        modelContext.insert(user)
+        try? modelContext.save()
+
+        _ = await PushManager.shared.requestPermission()
     }
 }
