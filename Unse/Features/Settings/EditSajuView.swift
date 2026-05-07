@@ -239,67 +239,32 @@ struct EditSajuView: View {
 
     private func performSave(recomputeSaju: Bool) {
         isSaving = true
-        let result = vm.compute()
         let input = vm.input
 
-        // SwiftData
-        user.nickname = input.nickname
-
-        if recomputeSaju, let saju = user.sajuProfile {
-            saju.birthCalendar = input.calendar.rawValue
-            saju.birthYear = input.year
-            saju.birthMonth = input.month
-            saju.birthDay = input.day
-            saju.birthHour = input.hour
-            saju.birthMinute = input.minute
-            saju.gender = input.gender.rawValue
-            saju.yearStem = result.saju.year.stem.character
-            saju.yearBranch = result.saju.year.branch.character
-            saju.monthStem = result.saju.month.stem.character
-            saju.monthBranch = result.saju.month.branch.character
-            saju.dayStem = result.saju.day.stem.character
-            saju.dayBranch = result.saju.day.branch.character
-            saju.hourStem = result.saju.hour?.stem.character
-            saju.hourBranch = result.saju.hour?.branch.character
-
-            let elDict = Dictionary(uniqueKeysWithValues: result.saju.fiveElements.map { ($0.key.rawValue, $0.value) })
-            saju.fiveElementsJSON = (try? String(data: JSONEncoder().encode(elDict), encoding: .utf8)) ?? "{}"
-            saju.daeWoonJSON = (try? String(data: JSONEncoder().encode(result.daeWoon), encoding: .utf8)) ?? "[]"
-            saju.lastModifiedAt = Date()
-
-            user.sajuModifiedCount += 1
-
-            // SajuReading 캐시 무효화 — 풀이가 새 사주에 맞게 다시 생성되도록
-            let userIdPrefix = user.id.uuidString
-            let descriptor = FetchDescriptor<SajuReading>(
-                predicate: #Predicate { $0.key.starts(with: userIdPrefix) }
-            )
-            if let stale = try? modelContext.fetch(descriptor) {
-                for row in stale { modelContext.delete(row) }
-            }
-        }
-        do {
-            try modelContext.save()
-        } catch {
-            errorMessage = "저장 중 오류가 발생했어요. 다시 시도해주세요.\n(\(error.localizedDescription))"
-            isSaving = false
-            return
-        }
-
-        // 재계산 케이스: AnalyzingView가 분석 모션 + Supabase upsert + saju-reading prefetch 처리.
         if recomputeSaju {
-            showRecomputing = true
+            // 출생정보 변경 — 로컬 SwiftData 즉시 저장 + 캐시 무효화. Supabase는 AnalyzingView가 처리.
+            do {
+                let result = vm.compute()
+                try SajuEditService.recomputeAndSaveLocally(
+                    input: input, result: result, user: user, modelContext: modelContext
+                )
+                showRecomputing = true
+            } catch {
+                errorMessage = "저장 중 오류가 발생했어요. 다시 시도해주세요.\n(\(error.localizedDescription))"
+            }
             isSaving = false
             return
         }
 
-        // 닉네임만 변경: 동기 동기화 후 dismiss.
+        // 닉네임만 변경 — 로컬 + 원격 동기화 후 dismiss.
         Task { @MainActor in
             do {
-                try await SupabaseAuthManager.updateNickname(input.nickname)
+                try await SajuEditService.updateNickname(
+                    input.nickname, user: user, modelContext: modelContext
+                )
                 dismiss()
             } catch {
-                errorMessage = "서버 동기화 실패. 로컬엔 저장됐어요.\n(\(error.localizedDescription))"
+                errorMessage = "저장 실패. 다시 시도해주세요.\n(\(error.localizedDescription))"
             }
             isSaving = false
         }

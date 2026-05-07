@@ -115,15 +115,15 @@ struct AnalyzingView: View {
         let result = vm.compute()
         computedResult = result
 
-        // 저장은 animation과 병렬로 시작 (사용자는 4.4s 동안 step animation 봄)
-        let saveTask = Task { try await performSave(result: result) }
+        // 저장은 animation과 병렬 (사용자는 4.4s 동안 step animation 봄).
+        // 부수 효과는 Service에 위임 — View는 UI만 담당.
+        let saveTask = Task { try await runSave(result: result) }
 
         for i in steps.indices {
             try? await Task.sleep(for: .seconds(1.1))
             withAnimation { step = i + 1 }
         }
 
-        // 저장 완료 대기. 실패 시 alert 표시 + 진행 중단.
         do {
             try await saveTask.value
         } catch {
@@ -131,52 +131,25 @@ struct AnalyzingView: View {
             return
         }
 
-        // 저장 끝났으면 saju-reading 1, 2단계 백그라운드 prefetch.
-        // 결과 무시 — 응답이 saju_readings에 캐시되므로 SajuResultView 진입 시 자동 hit.
-        let nickname = vm.input.nickname
-        let computed = result.saju
-        Task {
-            async let stage1 = APIClient.shared.fetchSajuReading(stage: 1, saju: computed, nickname: nickname)
-            async let stage2 = APIClient.shared.fetchSajuReading(stage: 2, saju: computed, nickname: nickname)
-            _ = try? await (stage1, stage2)
-        }
+        // 풀이 prefetch (background, 결과 무시 — caching 만 됨)
+        OnboardingService.prefetchReadings(saju: result.saju, nickname: vm.input.nickname)
 
         try? await Task.sleep(for: .seconds(0.5))
 
-        // edit 흐름: onComplete가 있으면 호출 (외부에서 dismiss 처리)
-        // onboarding 흐름: onComplete 없음. RootView @Query가 새 UserProfile 감지해서 자동 swap
+        // edit 흐름: onComplete가 있으면 호출. onboarding: RootView @Query가 자동 swap.
         onComplete?()
     }
 
-    private func performSave(result: (saju: SajuComputed, daeWoon: [DaeWoon])) async throws {
-        // edit 흐름: 외부 onSave가 SwiftData 업데이트 + Supabase 동기화 + 캐시 무효화 처리
+    private func runSave(result: (saju: SajuComputed, daeWoon: [DaeWoon])) async throws {
         if let onSave {
             try await onSave(result.saju, result.daeWoon)
             return
         }
-
-        // onboarding 흐름 (default): 새 user 생성
-        try await SupabaseAuthManager.updateNickname(vm.input.nickname)
-        try await SupabaseAuthManager.upsertSajuProfile(
+        try await OnboardingService.completeSignup(
             input: vm.input,
             saju: result.saju,
-            daeWoon: result.daeWoon
+            daeWoon: result.daeWoon,
+            modelContext: modelContext
         )
-
-        // 인증 provider 판별 — user_metadata.kakao_id 있으면 kakao, 아니면 apple
-        let session = try? await SupabaseManager.shared.auth.session
-        let isKakao = (session?.user.userMetadata["kakao_id"]) != nil
-        let authProvider = isKakao ? "kakao" : "apple"
-
-        let user = UserProfile(nickname: vm.input.nickname, authProvider: authProvider)
-        let profile = SajuProfile(
-            input: vm.input, saju: result.saju, daeWoon: result.daeWoon,
-            displayName: vm.input.nickname, relation: "본인"
-        )
-        user.sajuProfile = profile
-        modelContext.insert(user)
-        try modelContext.save()   // 실패 시 catch에서 errorMessage 처리
-
-        _ = await PushManager.shared.requestPermission()
     }
 }
