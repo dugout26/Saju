@@ -34,6 +34,49 @@ enum SupabaseAuthManager {
         return session.user.id
     }
 
+    /// Kakao OAuth → Edge Function (kakao-auth) → magic-link token_hash → verifyOTP.
+    /// nickname 명시 전달 시 카카오 nickname보다 우선.
+    static func signInWithKakao(nickname: String? = nil) async throws -> UUID {
+        let kakao = try await KakaoAuthManager.shared.signIn()
+
+        // Edge Function 호출 → token_hash 획득
+        let anonKey = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String ?? ""
+        var request = URLRequest(url: Endpoint.kakaoAuth.url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(anonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(anonKey)", forHTTPHeaderField: "Authorization")
+        struct Body: Encodable { let access_token: String }
+        request.httpBody = try JSONEncoder().encode(Body(access_token: kakao.accessToken))
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw AuthError.invalidCredential
+        }
+        struct TokenResponse: Decodable { let token_hash: String; let email: String }
+        let resp = try JSONDecoder().decode(TokenResponse.self, from: data)
+
+        // Supabase verifyOTP → 표준 세션 획득
+        let auth = try await SupabaseManager.shared.auth.verifyOTP(
+            tokenHash: resp.token_hash,
+            type: .magiclink
+        )
+        guard let session = auth.session else {
+            throw AuthError.invalidCredential
+        }
+
+        let resolvedNickname = nickname?.isEmpty == false ? nickname!
+            : (kakao.nickname.isEmpty ? "사용자" : kakao.nickname)
+
+        try await upsertUser(
+            id: session.user.id,
+            nickname: resolvedNickname,
+            authProvider: "kakao"
+        )
+
+        return session.user.id
+    }
+
     /// 만세력 계산 결과를 saju_profiles에 upsert.
     static func upsertSajuProfile(input: BirthInput, saju: SajuComputed, daeWoon: [DaeWoon]) async throws {
         struct Row: Encodable {

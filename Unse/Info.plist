@@ -35,13 +35,13 @@
 
     <!-- Kakao SDK -->
     <key>KAKAO_APP_KEY</key>
-    <string>YOUR_KAKAO_APP_KEY</string>
+    <string>ef72425518601ca347d305a9f3ba14a5</string>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>
             <key>CFBundleURLSchemes</key>
             <array>
-                <string>kakaoYOUR_KAKAO_APP_KEY</string>
+                <string>kakaoef72425518601ca347d305a9f3ba14a5</string>
             </array>
         </dict>
     </array>

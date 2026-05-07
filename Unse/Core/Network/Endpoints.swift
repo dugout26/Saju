@@ -12,6 +12,7 @@ enum Endpoint {
     case sajuReading
     case chat
     case registerPushToken
+    case kakaoAuth
 
     var url: URL {
         switch self {
@@ -19,6 +20,7 @@ enum Endpoint {
         case .sajuReading:      return Self.base.appending(path: "/functions/v1/saju-reading")
         case .chat:             return Self.base.appending(path: "/functions/v1/chat")
         case .registerPushToken: return Self.base.appending(path: "/functions/v1/register-push-token")
+        case .kakaoAuth:        return Self.base.appending(path: "/functions/v1/kakao-auth")
         }
     }
 

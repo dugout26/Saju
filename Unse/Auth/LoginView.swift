@@ -28,6 +28,21 @@ struct LoginView: View {
                     .padding(.bottom, 8)
             }
 
+            Button(action: signInWithKakao) {
+                HStack(spacing: 8) {
+                    Image(systemName: "message.fill")
+                        .font(.system(size: 15))
+                    Text("카카오로 시작하기")
+                        .font(.pretendard(15, .semibold))
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .foregroundStyle(.black)
+                .background(Color(hex: 0xFEE500))      // 카카오 brand 컬러
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .disabled(isAuthenticating)
+
             SignInWithAppleButton(.signIn) { _ in
                 // 실제 호출은 onCompletion 대신 SupabaseAuthManager에서 처리 (nonce 필요)
             } onCompletion: { _ in
@@ -70,6 +85,20 @@ struct LoginView: View {
         Task {
             do {
                 _ = try await SupabaseAuthManager.signInWithApple()
+                showBirthInfo = true
+            } catch {
+                errorMessage = "로그인에 실패했어요. 다시 시도해 주세요.\n(\(error.localizedDescription))"
+            }
+            isAuthenticating = false
+        }
+    }
+
+    private func signInWithKakao() {
+        isAuthenticating = true
+        errorMessage = nil
+        Task {
+            do {
+                _ = try await SupabaseAuthManager.signInWithKakao()
                 showBirthInfo = true
             } catch {
                 errorMessage = "로그인에 실패했어요. 다시 시도해 주세요.\n(\(error.localizedDescription))"
