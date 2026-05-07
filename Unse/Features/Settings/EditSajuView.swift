@@ -110,11 +110,16 @@ struct EditSajuView: View {
     private var birthdateField: some View {
         FormField(label: "생년월일") {
             HStack(spacing: 8) {
-                NumberInput(value: $vm.input.year,  suffix: "년", range: 1900...2025, flex: 1.4)
+                NumberInput(value: $vm.input.year,  suffix: "년", range: 1900...currentYear, flex: 1.4)
                 NumberInput(value: $vm.input.month, suffix: "월", range: 1...12)
                 NumberInput(value: $vm.input.day,   suffix: "일", range: 1...31)
             }
         }
+    }
+
+    /// 출생 연도 상한 — 매년 자동 업데이트
+    private var currentYear: Int {
+        Calendar.current.component(.year, from: Date())
     }
 
     private var timeField: some View {
@@ -273,7 +278,13 @@ struct EditSajuView: View {
                 for row in stale { modelContext.delete(row) }
             }
         }
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            errorMessage = "저장 중 오류가 발생했어요. 다시 시도해주세요.\n(\(error.localizedDescription))"
+            isSaving = false
+            return
+        }
 
         // 재계산 케이스: AnalyzingView가 분석 모션 + Supabase upsert + saju-reading prefetch 처리.
         if recomputeSaju {

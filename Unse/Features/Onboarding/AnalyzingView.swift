@@ -163,14 +163,19 @@ struct AnalyzingView: View {
             daeWoon: result.daeWoon
         )
 
-        let user = UserProfile(nickname: vm.input.nickname, authProvider: "apple")
+        // 인증 provider 판별 — user_metadata.kakao_id 있으면 kakao, 아니면 apple
+        let session = try? await SupabaseManager.shared.auth.session
+        let isKakao = (session?.user.userMetadata["kakao_id"]) != nil
+        let authProvider = isKakao ? "kakao" : "apple"
+
+        let user = UserProfile(nickname: vm.input.nickname, authProvider: authProvider)
         let profile = SajuProfile(
             input: vm.input, saju: result.saju, daeWoon: result.daeWoon,
             displayName: vm.input.nickname, relation: "본인"
         )
         user.sajuProfile = profile
         modelContext.insert(user)
-        try? modelContext.save()
+        try modelContext.save()   // 실패 시 catch에서 errorMessage 처리
 
         _ = await PushManager.shared.requestPermission()
     }

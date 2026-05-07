@@ -54,7 +54,8 @@ serve(async (req) => {
       },
     });
     if (created.error && !/already|exists|registered/i.test(created.error.message)) {
-      return jsonError(`createUser failed: ${created.error.message}`, 500);
+      console.error("[kakao-auth] createUser failed:", created.error);
+      return jsonError("로그인 처리 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.", 500);
     }
 
     // 4. magic-link token 발급 (이메일 발송 X, token_hash만 추출)
@@ -64,7 +65,8 @@ serve(async (req) => {
     });
     const tokenHash = link.data?.properties?.hashed_token;
     if (link.error || !tokenHash) {
-      return jsonError(`generateLink failed: ${link.error?.message ?? "no token"}`, 500);
+      console.error("[kakao-auth] generateLink failed:", link.error);
+      return jsonError("로그인 처리 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.", 500);
     }
 
     return new Response(JSON.stringify({ token_hash: tokenHash, email }), {
@@ -72,6 +74,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return jsonError(`kakao-auth error: ${(e as Error).message}`, 500);
+    console.error("[kakao-auth] unexpected error:", e);
+    return jsonError("로그인 처리 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.", 500);
   }
 });

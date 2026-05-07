@@ -77,14 +77,14 @@ reviews:
         모든 테이블에 RLS 활성 + user_id 기반 정책. RLS 누락된 신규 테이블은 reject.
         파괴적 마이그레이션(drop column/table)은 별도 PR로 분리하고 명시.
 
-  language_specific_instructions:
-    swift: |
-      Swift 6 strict concurrency 가정.
-      - UI 상태: @MainActor + @Observable
-      - I/O 상태: actor
-      - 직렬화 데이터: struct + Sendable 명시
-      - nonisolated 남용 금지 — 진짜 격리 불필요한 함수에만
-      - SwiftData @Model을 Sendable로 처리하는 코드는 즉시 reject
+    - path: "**/*.swift"
+      instructions: |
+        Swift 6 strict concurrency 가정.
+        - UI 상태: @MainActor + @Observable
+        - I/O 상태: actor
+        - 직렬화 데이터: struct + Sendable 명시
+        - nonisolated 남용 금지 — 진짜 격리 불필요한 함수에만
+        - SwiftData @Model을 Sendable로 처리하는 코드는 즉시 reject
 
 chat:
   auto_reply: true

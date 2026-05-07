@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var showPaywall = false
     @State private var showDeleteAlert = false
     @State private var showLogoutAlert = false
+    @State private var logoutError: String?
     @State private var pushEnabled = false
     @State private var pushTime = Date()
 
@@ -48,6 +49,11 @@ struct SettingsView: View {
             } message: {
                 Text("로그아웃하면 시작 화면으로 돌아갑니다.")
             }
+            .alert("로그아웃 실패", isPresented: .constant(logoutError != nil), actions: {
+                Button("확인") { logoutError = nil }
+            }, message: {
+                Text(logoutError ?? "")
+            })
             .onAppear { loadPushSettings() }
         }
     }
@@ -286,9 +292,14 @@ struct SettingsView: View {
         guard let user else { return }
         let context = modelContext
         Task { @MainActor in
-            try? await SupabaseAuthManager.signOut()
-            context.delete(user)
-            try? context.save()
+            do {
+                // Supabase signOut 성공 후에만 로컬 정리 — 부분 실패로 세션 갈리는 거 방지
+                try await SupabaseAuthManager.signOut()
+                context.delete(user)
+                try context.save()
+            } catch {
+                logoutError = "로그아웃 실패. 잠시 후 다시 시도해주세요.\n(\(error.localizedDescription))"
+            }
         }
     }
 
