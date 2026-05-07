@@ -8,6 +8,7 @@ struct SettingsView: View {
     @Environment(SubscriptionManager.self) private var sub
     @State private var showPaywall = false
     @State private var showDeleteAlert = false
+    @State private var showLogoutAlert = false
     @State private var pushEnabled = false
     @State private var pushTime = Date()
 
@@ -17,6 +18,7 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 profileSection
+                sajuSection
                 subscriptionSection
                 notificationSection
                 supportSection
@@ -39,6 +41,12 @@ struct SettingsView: View {
                 Button("취소", role: .cancel) {}
             } message: {
                 Text("모든 데이터가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.")
+            }
+            .alert("로그아웃", isPresented: $showLogoutAlert) {
+                Button("로그아웃", role: .destructive) { logout() }
+                Button("취소", role: .cancel) {}
+            } message: {
+                Text("로그아웃하면 시작 화면으로 돌아갑니다.")
             }
             .onAppear { loadPushSettings() }
         }
@@ -67,6 +75,21 @@ struct SettingsView: View {
                 }
             }
             .padding(.vertical, 6)
+        }
+    }
+
+    @ViewBuilder
+    private var sajuSection: some View {
+        if let user {
+            Section(header: Text("사주")) {
+                NavigationLink {
+                    EditSajuView(user: user)
+                } label: {
+                    Label("사주 정보 편집", systemImage: "person.text.rectangle")
+                        .font(.pretendard(14))
+                        .foregroundStyle(.ink1)
+                }
+            }
         }
     }
 
@@ -201,6 +224,14 @@ struct SettingsView: View {
 
     private var dangerSection: some View {
         Section {
+            Button {
+                showLogoutAlert = true
+            } label: {
+                Label("로그아웃", systemImage: "rectangle.portrait.and.arrow.right")
+                    .font(.pretendard(14))
+                    .foregroundStyle(.ink1)
+            }
+
             Button(role: .destructive) {
                 showDeleteAlert = true
             } label: {
@@ -249,6 +280,16 @@ struct SettingsView: View {
         guard let user else { return }
         modelContext.delete(user)
         try? modelContext.save()
+    }
+
+    private func logout() {
+        guard let user else { return }
+        let context = modelContext
+        Task { @MainActor in
+            try? await SupabaseAuthManager.signOut()
+            context.delete(user)
+            try? context.save()
+        }
     }
 
     private var defaultPushTime: Date {

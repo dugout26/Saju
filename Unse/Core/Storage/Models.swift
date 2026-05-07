@@ -14,6 +14,7 @@ final class UserProfile {
     var trialStartedAt: Date?
     var subscriptionExpiresAt: Date?
     var createdAt: Date
+    var sajuModifiedCount: Int = 0   // 출생 정보 변경 횟수 (Free 1회 cap, PRO 1일 1회)
 
     @Relationship(deleteRule: .cascade) var sajuProfile: SajuProfile?
 
