@@ -15,13 +15,15 @@ actor APIClient {
         authToken = token
     }
 
-    // MARK: - Daily Fortune
+    // MARK: - Daily Oneliner (한 줄 운세 + daily_fortunes 캐싱)
+    //
+    // 클라이언트가 DailyFortuneEngine으로 계산한 lucky_* 값을 함께 전송.
+    // Edge Function은 OpenAI 호출로 한 줄만 생성하고 모든 값을 daily_fortunes에 upsert.
 
-    func fetchDailyFortune(userId: String) async throws -> DailyFortuneDTO {
-        let fmt = ISO8601DateFormatter()
-        fmt.formatOptions = [.withFullDate]
-        let date = fmt.string(from: Date())
-        let request = try makeRequest(endpoint: .dailyFortune(userId: userId, date: date))
+    func fetchDailyOneliner(snapshot: DailyFortuneSnapshot) async throws -> DailyFortuneDTO {
+        let body = DailyOnelinerRequestBody(snapshot: snapshot)
+        var request = try makeRequest(endpoint: .dailyOneliner)
+        request.httpBody = try JSONEncoder().encode(body)
         let (data, _) = try await session.data(for: request)
         return try JSONDecoder().decode(DailyFortuneDTO.self, from: data)
     }
@@ -59,13 +61,14 @@ actor APIClient {
 
     // MARK: - Saju Reading (단계별 풀이)
 
-    func fetchSajuReading(stage: Int, saju: SajuComputed, nickname: String, userId: String) async throws -> String {
+    func fetchSajuReading(stage: Int, saju: SajuComputed, nickname: String) async throws -> String {
         #if DEBUG
         if Self.isMockMode {
             return Self.mockSajuReading(stage: stage, saju: saju, nickname: nickname)
         }
         #endif
-        let request = try makeRequest(endpoint: .sajuReading(userId: userId, stage: stage))
+        var request = try makeRequest(endpoint: .sajuReading)
+        request.httpBody = try JSONEncoder().encode(["stage": stage])
         let (data, _) = try await session.data(for: request)
         return try JSONDecoder().decode(SajuReadingDTO.self, from: data).content
     }
@@ -104,7 +107,7 @@ actor APIClient {
 
     #if DEBUG
     nonisolated static var isMockMode: Bool {
-        Endpoint.base.absoluteString.contains("api.unse.kr")
+        Endpoint.base.absoluteString.contains("placeholder.invalid")
     }
 
     nonisolated static func mockSajuReading(stage: Int, saju: SajuComputed, nickname: String) -> String {
@@ -125,14 +128,38 @@ actor APIClient {
 // MARK: - DTOs
 
 struct DailyFortuneDTO: Decodable {
-    let oneLiner: String
-    let luckyColorHex: String
-    let luckyColorTheme: String
-    let luckyDirection: String
-    let luckyTimeStart: String
-    let luckyTimeEnd: String
-    let luckyNumbers: [Int]
+    let date: String
+    let day_pillar_of_date: String
+    let one_liner: String
+    let lucky_color_primary: String
+    let lucky_color_secondary: String?
+    let lucky_direction: String
+    let lucky_time_start: String
+    let lucky_time_end: String
+    let lucky_numbers: [Int]
     let avoid: String
+}
+
+struct DailyOnelinerRequestBody: Encodable {
+    let day_pillar_of_date: String
+    let lucky_color_primary: String
+    let lucky_color_secondary: String?
+    let lucky_direction: String
+    let lucky_time_start: String
+    let lucky_time_end: String
+    let lucky_numbers: [Int]
+    let avoid: String
+
+    init(snapshot: DailyFortuneSnapshot) {
+        self.day_pillar_of_date = snapshot.dayPillar.characters
+        self.lucky_color_primary = snapshot.theme.hex
+        self.lucky_color_secondary = nil
+        self.lucky_direction = snapshot.luckyDirectionKorean
+        self.lucky_time_start = String(format: "%02d:00", snapshot.luckyTimeStartHour)
+        self.lucky_time_end = String(format: "%02d:00", snapshot.luckyTimeEndHour)
+        self.lucky_numbers = snapshot.luckyNumbers
+        self.avoid = snapshot.avoid
+    }
 }
 
 struct ChatRequestBody: Encodable {

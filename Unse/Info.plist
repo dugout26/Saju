@@ -27,6 +27,12 @@
         <string>UIInterfaceOrientationPortrait</string>
     </array>
 
+    <!-- Backend (Phase B에서 진짜 Supabase URL/anon key로 교체) -->
+    <key>SUPABASE_URL</key>
+    <string></string>
+    <key>SUPABASE_ANON_KEY</key>
+    <string></string>
+
     <!-- Kakao SDK -->
     <key>KAKAO_APP_KEY</key>
     <string>YOUR_KAKAO_APP_KEY</string>

@@ -1,30 +1,26 @@
 import Foundation
 
 enum Endpoint {
-    static let base = URL(string: "https://api.unse.kr/v1")!
+    /// Supabase project URL. Info.plist의 SUPABASE_URL에서 읽음.
+    /// Phase B 셋업 전엔 빈 문자열이고 APIClient는 mock으로 동작.
+    static let base: URL = {
+        let raw = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String ?? ""
+        return URL(string: raw.isEmpty ? "https://placeholder.invalid" : raw)!
+    }()
 
-    case dailyFortune(userId: String, date: String)
-    case sajuReading(userId: String, stage: Int)
+    case dailyOneliner
+    case sajuReading
     case chat
     case registerPushToken
 
     var url: URL {
         switch self {
-        case .dailyFortune(let uid, let date):
-            return Self.base.appending(path: "/fortune/\(uid)/\(date)")
-        case .sajuReading(let uid, let stage):
-            return Self.base.appending(path: "/saju/\(uid)/stage/\(stage)")
-        case .chat:
-            return Self.base.appending(path: "/chat")
-        case .registerPushToken:
-            return Self.base.appending(path: "/push/register")
+        case .dailyOneliner:    return Self.base.appending(path: "/functions/v1/daily-oneliner")
+        case .sajuReading:      return Self.base.appending(path: "/functions/v1/saju-reading")
+        case .chat:             return Self.base.appending(path: "/functions/v1/chat")
+        case .registerPushToken: return Self.base.appending(path: "/functions/v1/register-push-token")
         }
     }
 
-    var method: String {
-        switch self {
-        case .dailyFortune, .sajuReading: return "GET"
-        case .chat, .registerPushToken:   return "POST"
-        }
-    }
+    var method: String { "POST" }
 }

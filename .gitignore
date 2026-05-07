@@ -27,3 +27,8 @@ Config.local.xcconfig
 GoogleService-Info.plist
 *.p8
 *.p12
+
+# Supabase CLI 로컬 상태 (개인컴에서만 생성)
+supabase/.env*
+supabase/.temp/
+supabase/.branches/
