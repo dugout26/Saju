@@ -89,8 +89,10 @@ create index idx_daily_fortunes_user_date on public.daily_fortunes(user_id, date
 
 alter table public.daily_fortunes enable row level security;
 
-create policy "fortune_self_read" on public.daily_fortunes for select using (auth.uid() = user_id);
--- insert/update는 service_role(cron)만. 사용자 직접 X.
+create policy "fortune_self_read"   on public.daily_fortunes for select using (auth.uid() = user_id);
+create policy "fortune_self_insert" on public.daily_fortunes for insert with check (auth.uid() = user_id);
+create policy "fortune_self_update" on public.daily_fortunes for update using (auth.uid() = user_id);
+-- Edge Function이 user JWT로 daily-oneliner upsert하기 위함. 본인 row만 가능.
 
 -- ------------------------------------------------------------
 -- 4. saju_readings — 단계별 풀이 캐시
@@ -107,8 +109,9 @@ create table public.saju_readings (
 
 alter table public.saju_readings enable row level security;
 
-create policy "reading_self_read" on public.saju_readings for select using (auth.uid() = user_id);
--- insert/update는 service_role(Edge Function)만.
+create policy "reading_self_read"   on public.saju_readings for select using (auth.uid() = user_id);
+create policy "reading_self_insert" on public.saju_readings for insert with check (auth.uid() = user_id);
+create policy "reading_self_update" on public.saju_readings for update using (auth.uid() = user_id);
 
 -- ------------------------------------------------------------
 -- 5. chat_messages — AI 챗봇 히스토리 (유료 전용)

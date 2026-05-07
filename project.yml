@@ -10,6 +10,9 @@ packages:
   KakaoSDK:
     url: https://github.com/kakao/kakao-ios-sdk
     from: "2.22.0"
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: "2.20.0"
 
 settings:
   base:
@@ -36,6 +39,8 @@ targets:
         product: KakaoSDKAuth
       - package: KakaoSDK
         product: KakaoSDKUser
+      - package: Supabase
+        product: Supabase
     preBuildScripts:
       - script: |
           if [[ "$(uname -m)" == arm64 ]]; then

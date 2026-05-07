@@ -27,11 +27,11 @@
         <string>UIInterfaceOrientationPortrait</string>
     </array>
 
-    <!-- Backend (Phase B에서 진짜 Supabase URL/anon key로 교체) -->
+    <!-- Backend (Supabase). anon key는 RLS로 보호되므로 클라이언트 노출 OK. -->
     <key>SUPABASE_URL</key>
-    <string></string>
+    <string>https://lckhgvndkvmpqgmcqaea.supabase.co</string>
     <key>SUPABASE_ANON_KEY</key>
-    <string></string>
+    <string>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxja2hndm5ka3ZtcHFnbWNxYWVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1MTU2ODEsImV4cCI6MjA5MzA5MTY4MX0.StOjJJWbVrKcHa4SfTsAJd_r5p_VGjcsuJWM2EyY09w</string>
 
     <!-- Kakao SDK -->
     <key>KAKAO_APP_KEY</key>

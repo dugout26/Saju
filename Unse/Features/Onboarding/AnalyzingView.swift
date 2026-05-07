@@ -117,11 +117,28 @@ struct AnalyzingView: View {
 
         try? await Task.sleep(for: .seconds(0.5))
 
-        // Save to SwiftData
-        let profile = SajuProfile(input: vm.input, saju: result.saju, daeWoon: result.daeWoon)
-        modelContext.insert(profile)
-        try? modelContext.save()
+        do {
+            // Apple Sign in → Supabase 로그인 + users upsert
+            _ = try await SupabaseAuthManager.signInWithApple(nickname: vm.input.nickname)
 
-        showResult = true
+            // Supabase saju_profiles upsert
+            try await SupabaseAuthManager.upsertSajuProfile(
+                input: vm.input,
+                saju: result.saju,
+                daeWoon: result.daeWoon
+            )
+
+            // SwiftData 로컬 캐시 (UserProfile + SajuProfile)
+            let user = UserProfile(nickname: vm.input.nickname, authProvider: "apple")
+            let profile = SajuProfile(input: vm.input, saju: result.saju, daeWoon: result.daeWoon)
+            user.sajuProfile = profile
+            modelContext.insert(user)
+            try? modelContext.save()
+
+            showResult = true
+        } catch {
+            print("[Onboarding] sign-in/save failed: \(error)")
+            // TODO(Phase C): 사용자에게 에러 alert
+        }
     }
 }

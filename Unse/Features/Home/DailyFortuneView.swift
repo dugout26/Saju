@@ -10,24 +10,43 @@ struct DailyFortuneView: View {
     @State private var showChat = false
     @State private var showTimeline = false
     @State private var showShare = false
+    @State private var serverOneLiner: String?
 
     private var nickname: String { user?.nickname ?? "사용자" }
 
     private var snapshot: DailyFortuneSnapshot? {
         guard let saju = user?.sajuProfile?.computed else { return nil }
-        return DailyFortuneEngine.compute(saju: saju)
+        let base = DailyFortuneEngine.compute(saju: saju)
+        // 서버 호출 결과(있으면) → mock oneLiner 대체
+        guard let server = serverOneLiner else { return base }
+        return DailyFortuneSnapshot(
+            date: base.date, dayPillar: base.dayPillar, luckyElement: base.luckyElement,
+            theme: base.theme, luckyDirectionKorean: base.luckyDirectionKorean,
+            luckyDirectionHanja: base.luckyDirectionHanja,
+            luckyTimeStartHour: base.luckyTimeStartHour, luckyTimeEndHour: base.luckyTimeEndHour,
+            luckyTimeBranchLabel: base.luckyTimeBranchLabel, luckyNumbers: base.luckyNumbers,
+            avoid: base.avoid, oneLiner: server
+        )
     }
 
     var body: some View {
         NavigationStack {
             if let snap = snapshot {
                 content(snap: snap)
+                    .task { await loadOneLiner(snap: snap) }
             } else {
                 Text("사주 정보가 없습니다")
                     .foregroundStyle(.ink3)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.bg.ignoresSafeArea())
             }
+        }
+    }
+
+    private func loadOneLiner(snap: DailyFortuneSnapshot) async {
+        guard serverOneLiner == nil else { return }   // 한 번만 호출
+        if let dto = try? await APIClient.shared.fetchDailyOneliner(snapshot: snap) {
+            serverOneLiner = dto.one_liner
         }
     }
 

@@ -1,4 +1,5 @@
 import Foundation
+import Supabase
 
 // MARK: - API Client
 // All Claude/Anthropic calls go through the server-side Edge Function.
@@ -9,11 +10,10 @@ actor APIClient {
     private init() {}
 
     private let session = URLSession.shared
-    private var authToken: String? = nil   // set after login
 
-    func setAuthToken(_ token: String) {
-        authToken = token
-    }
+    private nonisolated static let anonKey: String = {
+        Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String ?? ""
+    }()
 
     // MARK: - Daily Oneliner (한 줄 운세 + daily_fortunes 캐싱)
     //
@@ -22,7 +22,7 @@ actor APIClient {
 
     func fetchDailyOneliner(snapshot: DailyFortuneSnapshot) async throws -> DailyFortuneDTO {
         let body = DailyOnelinerRequestBody(snapshot: snapshot)
-        var request = try makeRequest(endpoint: .dailyOneliner)
+        var request = try await makeRequest(endpoint: .dailyOneliner)
         request.httpBody = try JSONEncoder().encode(body)
         let (data, _) = try await session.data(for: request)
         return try JSONDecoder().decode(DailyFortuneDTO.self, from: data)
@@ -34,7 +34,7 @@ actor APIClient {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    var request = try makeRequest(endpoint: .chat)
+                    var request = try await makeRequest(endpoint: .chat)
                     let body = ChatRequestBody(messages: messages)
                     request.httpBody = try JSONEncoder().encode(body)
 
@@ -67,7 +67,7 @@ actor APIClient {
             return Self.mockSajuReading(stage: stage, saju: saju, nickname: nickname)
         }
         #endif
-        var request = try makeRequest(endpoint: .sajuReading)
+        var request = try await makeRequest(endpoint: .sajuReading)
         request.httpBody = try JSONEncoder().encode(["stage": stage])
         let (data, _) = try await session.data(for: request)
         return try JSONDecoder().decode(SajuReadingDTO.self, from: data).content
@@ -76,20 +76,22 @@ actor APIClient {
     // MARK: - Push Token Registration
 
     func registerPushToken(_ token: String, userId: String) async throws {
-        var request = try makeRequest(endpoint: .registerPushToken)
+        var request = try await makeRequest(endpoint: .registerPushToken)
         request.httpBody = try JSONEncoder().encode(["token": token, "userId": userId])
         _ = try await session.data(for: request)
     }
 
     // MARK: - Helpers
 
-    private func makeRequest(endpoint: Endpoint) throws -> URLRequest {
+    /// Supabase Edge Function 표준 헤더 (apikey + Authorization).
+    /// 로그인 상태면 user JWT, 아니면 anon key.
+    private func makeRequest(endpoint: Endpoint) async throws -> URLRequest {
         var request = URLRequest(url: endpoint.url)
         request.httpMethod = endpoint.method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let token = authToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
+        request.setValue(Self.anonKey, forHTTPHeaderField: "apikey")
+        let bearer = (try? await SupabaseManager.shared.auth.session.accessToken) ?? Self.anonKey
+        request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = 30
         return request
     }

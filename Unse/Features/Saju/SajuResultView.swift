@@ -8,6 +8,8 @@ struct SajuResultView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showDaily = false
     @State private var showHan = true
+    @State private var stage1Text: String?
+    @State private var stage2Text: String?
 
     private var pillarData: [(label: String, pillar: Pillar)] {
         [("시주", saju.hour), ("일주", saju.day), ("월주", saju.month), ("년주", saju.year)]
@@ -63,6 +65,15 @@ struct SajuResultView: View {
         .navigationDestination(isPresented: $showDaily) {
             DailyFortuneView(user: nil)
         }
+        .task { await loadReadings() }
+    }
+
+    private func loadReadings() async {
+        async let s1 = try? await APIClient.shared.fetchSajuReading(stage: 1, saju: saju, nickname: nickname)
+        async let s2 = try? await APIClient.shared.fetchSajuReading(stage: 2, saju: saju, nickname: nickname)
+        let (r1, r2) = await (s1, s2)
+        if let r1 { stage1Text = r1 }
+        if let r2 { stage2Text = r2 }
     }
 
     private var headerSection: some View {
@@ -88,18 +99,14 @@ struct SajuResultView: View {
             VStack(spacing: 16) {
                 PillarRow(pillars: orderedPillars, showHan: showHan)
 
-                // 일간 highlight
-                // TODO(Phase B): APIClient.fetchSajuReading(stage: 1, ...)로 동적 교체
+                // 일간 highlight (Phase B fetchSajuReading stage 1)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("일간 (나의 본성)")
                         .font(.pretendard(11, .semibold))
                         .foregroundStyle(Color(hex: 0x7E6228))
-                    Text("큰 산처럼 듬직한 사람")
-                        .font(.serifKR(17, .semibold))
+                    Text(stage1Text ?? "분석 중...")
+                        .font(.serifKR(15, .medium))
                         .foregroundStyle(.ink1)
-                    Text("\(saju.dayMaster.character)은 단단한 기운. 신뢰감을 주고\n주변을 안정시키는 기질로 해석됩니다.")
-                        .font(.pretendard(13))
-                        .foregroundStyle(.ink2)
                         .lineSpacing(3)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -128,13 +135,13 @@ struct SajuResultView: View {
     }
 
     private var tendencyCard: some View {
-        // TODO(Phase B): APIClient.fetchSajuReading(stage: 2, ...)로 동적 교체
+        // Phase B fetchSajuReading stage 2
         Card {
             VStack(alignment: .leading, spacing: 10) {
                 Text("성향 한 줄")
                     .font(.pretendard(15, .semibold))
                     .foregroundStyle(.ink1)
-                Text("섬세한 직관력을 갖추고 있습니다. 결정은 신중하지만 한 번 정하면 끝까지 밀고 가는 흐름으로 해석됩니다.")
+                Text(stage2Text ?? "분석 중...")
                     .font(.pretendard(14))
                     .foregroundStyle(.ink2)
                     .lineSpacing(5)

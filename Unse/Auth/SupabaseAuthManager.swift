@@ -1,0 +1,124 @@
+import Foundation
+import Supabase
+
+/// Apple/Kakao 로그인을 Supabase Auth에 연결.
+/// 로그인 성공 시 public.users row를 upsert (auth.users.id = users.id).
+@MainActor
+enum SupabaseAuthManager {
+
+    /// Apple Sign in → Supabase 교환 → users row upsert. 반환: Supabase user id.
+    /// nickname을 명시 전달하면 Apple fullName보다 우선 (온보딩에서 입력한 값 사용).
+    static func signInWithApple(nickname: String? = nil) async throws -> UUID {
+        let apple = try await AppleAuthManager.shared.signIn()
+        guard !apple.idToken.isEmpty, !apple.rawNonce.isEmpty else {
+            throw AuthError.invalidCredential
+        }
+
+        let session = try await SupabaseManager.shared.auth.signInWithIdToken(
+            credentials: .init(
+                provider: .apple,
+                idToken: apple.idToken,
+                nonce: apple.rawNonce
+            )
+        )
+
+        let resolvedNickname = nickname?.isEmpty == false ? nickname!
+            : (apple.fullName.isEmpty ? "사용자" : apple.fullName)
+
+        try await upsertUser(
+            id: session.user.id,
+            nickname: resolvedNickname,
+            authProvider: "apple"
+        )
+
+        return session.user.id
+    }
+
+    /// 만세력 계산 결과를 saju_profiles에 upsert.
+    static func upsertSajuProfile(input: BirthInput, saju: SajuComputed, daeWoon: [DaeWoon]) async throws {
+        struct Row: Encodable {
+            let user_id: UUID
+            let birth_calendar: String
+            let birth_year: Int
+            let birth_month: Int
+            let birth_day: Int
+            let birth_hour: Int?
+            let birth_minute: Int?
+            let gender: String
+            let birth_place: String
+            let year_pillar: String
+            let month_pillar: String
+            let day_pillar: String
+            let hour_pillar: String?
+            let day_master: String
+            let five_elements_dist: [String: Int]
+            let dae_woon: [DaeWoonDTO]
+        }
+        struct DaeWoonDTO: Encodable {
+            let start_age: Int
+            let pillar: String
+            let start_year: Int
+        }
+
+        guard let userId = try? await SupabaseManager.shared.auth.session.user.id else {
+            throw AuthError.invalidCredential
+        }
+
+        let elements = Dictionary(uniqueKeysWithValues: saju.fiveElements.map { ($0.key.rawValue, $0.value) })
+
+        let row = Row(
+            user_id: userId,
+            birth_calendar: input.calendar.rawValue == "양력" ? "solar" : "lunar",
+            birth_year: input.year,
+            birth_month: input.month,
+            birth_day: input.day,
+            birth_hour: input.hour,
+            birth_minute: input.minute,
+            gender: input.gender == .male ? "male" : "female",
+            birth_place: "서울",
+            year_pillar: saju.year.characters,
+            month_pillar: saju.month.characters,
+            day_pillar: saju.day.characters,
+            hour_pillar: saju.hour?.characters,
+            day_master: saju.dayMaster.character,
+            five_elements_dist: elements,
+            dae_woon: daeWoon.map { DaeWoonDTO(start_age: $0.startAge, pillar: $0.pillar.characters, start_year: $0.startYear) }
+        )
+
+        try await SupabaseManager.shared
+            .from("saju_profiles")
+            .upsert(row, onConflict: "user_id")
+            .execute()
+    }
+
+    /// 현재 세션 (앱 시작 시 자동 복원). nil이면 로그인 안 된 상태.
+    static var currentUserId: UUID? {
+        get async {
+            try? await SupabaseManager.shared.auth.session.user.id
+        }
+    }
+
+    static func signOut() async throws {
+        try await SupabaseManager.shared.auth.signOut()
+    }
+
+    // MARK: - Helpers
+
+    private static func upsertUser(id: UUID, nickname: String, authProvider: String) async throws {
+        struct Row: Encodable {
+            let id: UUID
+            let nickname: String
+            let auth_provider: String
+            let last_active_at: Date
+        }
+        try await SupabaseManager.shared
+            .from("users")
+            .upsert(Row(
+                id: id,
+                nickname: nickname,
+                auth_provider: authProvider,
+                last_active_at: Date()
+            ), onConflict: "id")
+            .execute()
+    }
+}
