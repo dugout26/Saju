@@ -131,7 +131,10 @@ struct AnalyzingView: View {
             // SwiftData 로컬 캐시 (UserProfile + SajuProfile).
             // 저장되면 RootView가 @Query로 감지해서 자동으로 MainTabView(홈)로 swap.
             let user = UserProfile(nickname: vm.input.nickname, authProvider: "apple")
-            let profile = SajuProfile(input: vm.input, saju: result.saju, daeWoon: result.daeWoon)
+            let profile = SajuProfile(
+                input: vm.input, saju: result.saju, daeWoon: result.daeWoon,
+                displayName: vm.input.nickname, relation: "본인"
+            )
             user.sajuProfile = profile
             modelContext.insert(user)
             try? modelContext.save()

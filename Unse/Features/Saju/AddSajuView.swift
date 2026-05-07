@@ -82,7 +82,7 @@ struct AddSajuView: View {
                     }
                 }
             }
-            .navigationTitle(isEditing ? "사주 편집" : "사주 추가")
+            .navigationTitle(isEditing ? "정보 편집" : "인원 추가")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {

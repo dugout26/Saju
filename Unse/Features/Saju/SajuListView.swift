@@ -49,13 +49,13 @@ struct SajuListView: View {
                         showAdd = true
                     }
                 } label: {
-                    Label("사주 추가", systemImage: "plus")
+                    Label("인원 추가", systemImage: "plus")
                         .font(.pretendard(14, .semibold))
                         .foregroundStyle(.lavenderDeep)
                 }
             } footer: {
                 if !sub.isPremium {
-                    Text("PRO 회원은 가족·친구 사주를 4명까지 등록할 수 있어요")
+                    Text("PRO 회원은 가족·친구를 4명까지 등록할 수 있어요")
                         .font(.pretendard(11))
                 }
             }
@@ -91,7 +91,7 @@ struct SajuListView: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(saju.displayName)
+                    Text(displayName(for: saju))
                         .font(.pretendard(15, .semibold))
                         .foregroundStyle(.ink1)
                     if saju.relation != "본인" {
@@ -103,7 +103,7 @@ struct SajuListView: View {
                             .clipShape(Capsule())
                     }
                 }
-                Text("\(saju.birthYear). \(String(format: "%02d", saju.birthMonth)). \(String(format: "%02d", saju.birthDay)) · \(saju.gender)")
+                Text(birthDateString(saju))
                     .font(.pretendard(12))
                     .foregroundStyle(.ink3)
             }
@@ -113,6 +113,18 @@ struct SajuListView: View {
                 .foregroundStyle(.ink4)
         }
         .padding(.vertical, 4)
+    }
+
+    private func displayName(for saju: SajuProfile) -> String {
+        if !saju.displayName.isEmpty { return saju.displayName }
+        return saju.relation == "본인" ? user.nickname : "이름 없음"
+    }
+
+    private func birthDateString(_ saju: SajuProfile) -> String {
+        let y = String(saju.birthYear)        // 천단위 콤마 방지
+        let m = String(format: "%02d", saju.birthMonth)
+        let d = String(format: "%02d", saju.birthDay)
+        return "\(y). \(m). \(d) · \(saju.gender)"
     }
 
     private func deleteAdditional(at offsets: IndexSet) {
