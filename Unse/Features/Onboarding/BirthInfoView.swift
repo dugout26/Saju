@@ -19,7 +19,7 @@ final class BirthInfoViewModel {
 
     var formIsValid: Bool { input.isValid && !input.nickname.isEmpty }
 
-    func compute() -> (SajuComputed, [DaeWoon]) {
+    func compute() -> (saju: SajuComputed, daeWoon: [DaeWoon]) {
         Manse.calculate(
             year: input.year, month: input.month, day: input.day,
             hour: input.hour, minute: input.minute,

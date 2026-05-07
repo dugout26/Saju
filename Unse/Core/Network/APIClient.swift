@@ -28,14 +28,12 @@ actor APIClient {
 
     // MARK: - Chat (Server-Sent Events streaming)
 
-    func chatStream(messages: [ChatMessage]) -> AsyncThrowingStream<String, Error> {
+    func chatStream(messages: [[String: String]]) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
                     var request = try makeRequest(endpoint: .chat)
-                    let body = ChatRequestBody(messages: messages.map {
-                        ["role": $0.role, "content": $0.content]
-                    })
+                    let body = ChatRequestBody(messages: messages)
                     request.httpBody = try JSONEncoder().encode(body)
 
                     let (bytes, response) = try await session.bytes(for: request)
@@ -57,6 +55,19 @@ actor APIClient {
                 }
             }
         }
+    }
+
+    // MARK: - Saju Reading (단계별 풀이)
+
+    func fetchSajuReading(stage: Int, saju: SajuComputed, nickname: String, userId: String) async throws -> String {
+        #if DEBUG
+        if Self.isMockMode {
+            return Self.mockSajuReading(stage: stage, saju: saju, nickname: nickname)
+        }
+        #endif
+        let request = try makeRequest(endpoint: .sajuReading(userId: userId, stage: stage))
+        let (data, _) = try await session.data(for: request)
+        return try JSONDecoder().decode(SajuReadingDTO.self, from: data).content
     }
 
     // MARK: - Push Token Registration
@@ -88,6 +99,27 @@ actor APIClient {
               let content = delta["content"] as? String else { return nil }
         return content
     }
+
+    // MARK: - Mock (DEBUG only) — Phase B에서 baseURL이 진짜 Supabase로 바뀌면 자동 비활성
+
+    #if DEBUG
+    nonisolated static var isMockMode: Bool {
+        Endpoint.base.absoluteString.contains("api.unse.kr")
+    }
+
+    nonisolated static func mockSajuReading(stage: Int, saju: SajuComputed, nickname: String) -> String {
+        let day = saju.dayMaster
+        let dom = saju.dominantElement
+        switch stage {
+        case 1:
+            return "\(nickname)님은 \(day.character)(\(day.korean)) 일간으로, \(dom.rawValue)(\(dom.korean)) 기운이 두드러진 사주로 해석됩니다."
+        case 2:
+            return "\(day.character) 일간은 차분함과 결단력이 함께 흐르는 성향으로 풀이됩니다.\n\n오행 균형에서 \(dom.rawValue) 기운이 두드러져, 이 영역에서 강점이 자연스럽게 드러나는 흐름으로 해석됩니다."
+        default:
+            return "\(stage)단계 풀이는 준비 중입니다."
+        }
+    }
+    #endif
 }
 
 // MARK: - DTOs
@@ -105,6 +137,10 @@ struct DailyFortuneDTO: Decodable {
 
 struct ChatRequestBody: Encodable {
     let messages: [[String: String]]
+}
+
+struct SajuReadingDTO: Decodable {
+    let content: String
 }
 
 enum APIError: LocalizedError {

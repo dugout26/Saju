@@ -89,6 +89,7 @@ struct SajuResultView: View {
                 PillarRow(pillars: orderedPillars, showHan: showHan)
 
                 // 일간 highlight
+                // TODO(Phase B): APIClient.fetchSajuReading(stage: 1, ...)로 동적 교체
                 VStack(alignment: .leading, spacing: 4) {
                     Text("일간 (나의 본성)")
                         .font(.pretendard(11, .semibold))
@@ -127,6 +128,7 @@ struct SajuResultView: View {
     }
 
     private var tendencyCard: some View {
+        // TODO(Phase B): APIClient.fetchSajuReading(stage: 2, ...)로 동적 교체
         Card {
             VStack(alignment: .leading, spacing: 10) {
                 Text("성향 한 줄")

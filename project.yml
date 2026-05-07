@@ -60,6 +60,18 @@ targets:
     dependencies:
       - target: Unse
 
+  UnseTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: UnseTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: kr.mound.unse.tests
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: Unse
+
 schemes:
   Unse:
     build:
@@ -70,6 +82,8 @@ schemes:
       config: Debug
     test:
       config: Debug
+      targets:
+        - UnseTests
     profile:
       config: Release
     archive:

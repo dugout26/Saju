@@ -59,23 +59,3 @@ struct DaeWoonChart: View {
     }
 }
 
-// MARK: - HeavenlyStem helpers
-
-private extension HeavenlyStem {
-    var character: String {
-        switch self {
-        case .甲: "甲"; case .乙: "乙"; case .丙: "丙"; case .丁: "丁"; case .戊: "戊"
-        case .己: "己"; case .庚: "庚"; case .辛: "辛"; case .壬: "壬"; case .癸: "癸"
-        }
-    }
-}
-
-private extension EarthlyBranch {
-    var character: String {
-        switch self {
-        case .子: "子"; case .丑: "丑"; case .寅: "寅"; case .卯: "卯"
-        case .辰: "辰"; case .巳: "巳"; case .午: "午"; case .未: "未"
-        case .申: "申"; case .酉: "酉"; case .戌: "戌"; case .亥: "亥"
-        }
-    }
-}

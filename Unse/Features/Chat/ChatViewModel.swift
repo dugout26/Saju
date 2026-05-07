@@ -36,10 +36,10 @@ final class ChatViewModel {
         let idx = messages.count - 1
 
         do {
-            let storageMessages = messages.dropLast().map {
-                ChatMessage(role: $0.role == .user ? "user" : "assistant", content: $0.text)
+            let storageMessages = messages.dropLast().map { msg in
+                ["role": msg.role == .user ? "user" : "assistant", "content": msg.text]
             }
-            for try await delta in APIClient.shared.chatStream(messages: Array(storageMessages)) {
+            for try await delta in await APIClient.shared.chatStream(messages: Array(storageMessages)) {
                 assistantBubble.text += delta
                 messages[idx] = assistantBubble
             }

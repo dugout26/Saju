@@ -257,7 +257,7 @@ struct PaywallView: View {
             .disabled(isPurchasing || sub.products.isEmpty)
 
             Button {
-                Task { await sub.restorePurchases() }
+                Task { try? await sub.restorePurchases() }
             } label: {
                 Text("이미 구독 중이에요")
                     .font(.pretendard(13))

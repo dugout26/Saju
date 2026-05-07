@@ -87,6 +87,38 @@ final class SajuProfile {
     }
 }
 
+extension SajuProfile {
+    /// 캐시된 stem/branch character들을 SajuComputed 도메인 객체로 복원
+    var computed: SajuComputed? {
+        guard let yStem = HeavenlyStem.from(character: yearStem),
+              let yBranch = EarthlyBranch.from(character: yearBranch),
+              let mStem = HeavenlyStem.from(character: monthStem),
+              let mBranch = EarthlyBranch.from(character: monthBranch),
+              let dStem = HeavenlyStem.from(character: dayStem),
+              let dBranch = EarthlyBranch.from(character: dayBranch) else { return nil }
+
+        let hourPillar: Pillar? = {
+            guard let hs = hourStem, let hb = hourBranch,
+                  let stem = HeavenlyStem.from(character: hs),
+                  let branch = EarthlyBranch.from(character: hb) else { return nil }
+            return Pillar(stem: stem, branch: branch)
+        }()
+
+        return SajuComputed(
+            year:  Pillar(stem: yStem, branch: yBranch),
+            month: Pillar(stem: mStem, branch: mBranch),
+            day:   Pillar(stem: dStem, branch: dBranch),
+            hour:  hourPillar
+        )
+    }
+
+    /// daeWoonJSON을 [DaeWoon]으로 디코딩
+    var daeWoon: [DaeWoon] {
+        guard let data = daeWoonJSON.data(using: .utf8) else { return [] }
+        return (try? JSONDecoder().decode([DaeWoon].self, from: data)) ?? []
+    }
+}
+
 // MARK: - DailyFortune
 
 @Model

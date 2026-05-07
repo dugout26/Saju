@@ -125,3 +125,17 @@ enum Gender: String, CaseIterable, Codable {
     case female = "여성"
     case male   = "남성"
 }
+
+// MARK: - character → enum 역변환 (SwiftData 캐시 복원용)
+
+extension HeavenlyStem {
+    static func from(character: String) -> HeavenlyStem? {
+        Self.allCases.first { $0.character == character }
+    }
+}
+
+extension EarthlyBranch {
+    static func from(character: String) -> EarthlyBranch? {
+        Self.allCases.first { $0.character == character }
+    }
+}

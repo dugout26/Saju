@@ -18,3 +18,12 @@ DerivedData/
 *.xcworkspace/xcuserdata
 *.xcworkspace/xcshareddata/swiftpm
 .swiftpm
+
+# Secrets — 절대 커밋 금지 (CLAUDE.md 4. 보안 원칙)
+*.env
+.env.*
+Secrets.plist
+Config.local.xcconfig
+GoogleService-Info.plist
+*.p8
+*.p12

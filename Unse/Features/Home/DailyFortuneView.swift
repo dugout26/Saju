@@ -7,48 +7,63 @@ struct DailyFortuneView: View {
     var user: UserProfile?
 
     @Environment(\.modelContext) private var modelContext
-    @State private var fortune: DailyFortune?
-    @State private var theme: FortuneTheme = .lavender
     @State private var showChat = false
     @State private var showTimeline = false
     @State private var showShare = false
 
-    private let nickname: String = "지수"  // TODO: from user profile
+    private var nickname: String { user?.nickname ?? "사용자" }
+
+    private var snapshot: DailyFortuneSnapshot? {
+        guard let saju = user?.sajuProfile?.computed else { return nil }
+        return DailyFortuneEngine.compute(saju: saju)
+    }
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 12) {
-                    dateGreeting
-                    oneLinerCard
-                    luckyGrid
-                    avoidCard
-                    ctaButtons
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 40)
+            if let snap = snapshot {
+                content(snap: snap)
+            } else {
+                Text("사주 정보가 없습니다")
+                    .foregroundStyle(.ink3)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.bg.ignoresSafeArea())
             }
-            .background(theme.gradient.ignoresSafeArea())
-            .navigationTitle("오늘의 운세")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { showShare = true } label: {
-                        Image(systemName: "square.and.arrow.up")
-                            .foregroundStyle(.ink1)
-                    }
-                    .minTapTarget()
-                }
-            }
-            .navigationDestination(isPresented: $showChat)     { ChatView(user: user) }
-            .navigationDestination(isPresented: $showTimeline) { TimelineView(user: user) }
-            .sheet(isPresented: $showShare)                    { ShareCardView(theme: theme, nickname: nickname) }
         }
+    }
+
+    private func content(snap: DailyFortuneSnapshot) -> some View {
+        let theme = snap.theme
+        return ScrollView {
+            VStack(spacing: 12) {
+                dateGreeting(theme: theme)
+                oneLinerCard(snap: snap, theme: theme)
+                luckyGrid(snap: snap, theme: theme)
+                avoidCard(snap: snap)
+                ctaButtons(theme: theme)
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 40)
+        }
+        .background(theme.gradient.ignoresSafeArea())
+        .navigationTitle("오늘의 운세")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button { showShare = true } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .foregroundStyle(.ink1)
+                }
+                .minTapTarget()
+            }
+        }
+        .navigationDestination(isPresented: $showChat)     { ChatView(user: user) }
+        .navigationDestination(isPresented: $showTimeline) { TimelineView(user: user) }
+        .sheet(isPresented: $showShare)                    { ShareCardView(theme: theme, nickname: nickname) }
     }
 
     // MARK: - Sub-views
 
-    private var dateGreeting: some View {
+    private func dateGreeting(theme: FortuneTheme) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(Date(), format: .dateTime.year().month().day().weekday(.wide))
                 .font(.pretendard(12, .medium))
@@ -67,7 +82,7 @@ struct DailyFortuneView: View {
         .padding(.top, 8)
     }
 
-    private var oneLinerCard: some View {
+    private func oneLinerCard(snap: DailyFortuneSnapshot, theme: FortuneTheme) -> some View {
         ZStack(alignment: .topTrailing) {
             Circle()
                 .fill(theme.soft).opacity(0.7)
@@ -76,7 +91,7 @@ struct DailyFortuneView: View {
 
             VStack(alignment: .leading, spacing: 12) {
                 Tag(text: "한 줄 운세", background: theme.soft, foreground: theme.accent)
-                Text("차분히 듣는 자세가\n예상 밖의 인연을 부르는 날입니다.")
+                Text(snap.oneLiner)
                     .font(.serifKR(19, .medium))
                     .foregroundStyle(.ink1)
                     .lineSpacing(5)
@@ -90,16 +105,16 @@ struct DailyFortuneView: View {
         .clipped()
     }
 
-    private var luckyGrid: some View {
+    private func luckyGrid(snap: DailyFortuneSnapshot, theme: FortuneTheme) -> some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-            luckyColorCard
-            luckyDirectionCard
-            luckyTimeCard
-            luckyNumberCard
+            luckyColorCard(theme: theme)
+            luckyDirectionCard(snap: snap, theme: theme)
+            luckyTimeCard(snap: snap)
+            luckyNumberCard(snap: snap, theme: theme)
         }
     }
 
-    private var luckyColorCard: some View {
+    private func luckyColorCard(theme: FortuneTheme) -> some View {
         Card(padding: 16) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("행운의 색")
@@ -128,7 +143,7 @@ struct DailyFortuneView: View {
         }
     }
 
-    private var luckyDirectionCard: some View {
+    private func luckyDirectionCard(snap: DailyFortuneSnapshot, theme: FortuneTheme) -> some View {
         Card(padding: 16) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("행운의 방향")
@@ -136,10 +151,10 @@ struct DailyFortuneView: View {
                     .foregroundStyle(.ink3)
                     .tracking(0.3)
                 HStack(spacing: 10) {
-                    Compass(direction: .east, accent: theme.accent, soft: theme.soft)
+                    Compass(direction: compassDirection(for: snap.luckyElement), accent: theme.accent, soft: theme.soft)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("동쪽").font(.serifKR(16, .semibold)).foregroundStyle(.ink1)
-                        Text("東 · 木").font(.pretendard(11)).foregroundStyle(.ink3)
+                        Text(snap.luckyDirectionKorean).font(.serifKR(16, .semibold)).foregroundStyle(.ink1)
+                        Text(snap.luckyDirectionHanja).font(.pretendard(11)).foregroundStyle(.ink3)
                     }
                 }
             }
@@ -147,17 +162,17 @@ struct DailyFortuneView: View {
         }
     }
 
-    private var luckyTimeCard: some View {
+    private func luckyTimeCard(snap: DailyFortuneSnapshot) -> some View {
         Card(padding: 16) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("행운의 시간")
                     .font(.pretendard(11, .semibold))
                     .foregroundStyle(.ink3)
                     .tracking(0.3)
-                Text("15:00 — 17:00")
+                Text(String(format: "%02d:00 — %02d:00", snap.luckyTimeStartHour, snap.luckyTimeEndHour))
                     .font(.serifKR(18, .semibold))
                     .foregroundStyle(.ink1)
-                Text("申時 · 신시")
+                Text(snap.luckyTimeBranchLabel)
                     .font(.pretendard(11))
                     .foregroundStyle(.ink3)
             }
@@ -165,7 +180,7 @@ struct DailyFortuneView: View {
         }
     }
 
-    private var luckyNumberCard: some View {
+    private func luckyNumberCard(snap: DailyFortuneSnapshot, theme: FortuneTheme) -> some View {
         Card(padding: 16) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("행운의 숫자")
@@ -173,16 +188,19 @@ struct DailyFortuneView: View {
                     .foregroundStyle(.ink3)
                     .tracking(0.3)
                 HStack(alignment: .lastTextBaseline, spacing: 8) {
-                    Text("3").font(.serifKR(28, .semibold)).foregroundStyle(theme.accent)
-                    Text("·").font(.pretendard(18)).foregroundStyle(.ink4)
-                    Text("8").font(.serifKR(28, .semibold)).foregroundStyle(theme.accent)
+                    ForEach(Array(snap.luckyNumbers.enumerated()), id: \.offset) { idx, num in
+                        if idx > 0 {
+                            Text("·").font(.pretendard(18)).foregroundStyle(.ink4)
+                        }
+                        Text("\(num)").font(.serifKR(28, .semibold)).foregroundStyle(theme.accent)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    private var avoidCard: some View {
+    private func avoidCard(snap: DailyFortuneSnapshot) -> some View {
         HStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10)
@@ -196,7 +214,7 @@ struct DailyFortuneView: View {
                 Text("피해야 할 것")
                     .font(.pretendard(11, .semibold))
                     .foregroundStyle(.ink3)
-                Text("충동적인 금전 결정")
+                Text(snap.avoid)
                     .font(.pretendard(14))
                     .foregroundStyle(.ink1)
             }
@@ -211,7 +229,7 @@ struct DailyFortuneView: View {
         )
     }
 
-    private var ctaButtons: some View {
+    private func ctaButtons(theme: FortuneTheme) -> some View {
         VStack(spacing: 8) {
             PrimaryButton(title: "AI에게 더 자세히 물어보기", color: theme.accent) {
                 showChat = true
@@ -222,5 +240,15 @@ struct DailyFortuneView: View {
             }
         }
         .padding(.top, 8)
+    }
+
+    private func compassDirection(for element: Element) -> CompassDirection {
+        switch element {
+        case .wood:  .east
+        case .fire:  .south
+        case .metal: .west
+        case .water: .north
+        case .earth: .east   // Compass에 center 없음 → east로 fallback
+        }
     }
 }

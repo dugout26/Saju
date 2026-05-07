@@ -137,7 +137,7 @@ struct SettingsView: View {
                 .onChange(of: pushTime) { _, newValue in
                     user?.pushTime = newValue
                     try? modelContext.save()
-                    PushManager.shared.scheduleDailyFortunePush(at: newValue)
+                    Task { await PushManager.shared.scheduleDailyFortunePush(at: newValue, nickname: nickname) }
                 }
             }
         }

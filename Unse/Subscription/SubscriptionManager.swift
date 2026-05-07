@@ -83,7 +83,7 @@ final class SubscriptionManager {
     }
 
     func trialDescription(for product: Product) -> String? {
-        product.subscription?.introductoryOffer?.displayPrice
-            .flatMap { "7일 무료 후 \($0)" }
+        guard let price = product.subscription?.introductoryOffer?.displayPrice else { return nil }
+        return "7일 무료 후 \(price)"
     }
 }

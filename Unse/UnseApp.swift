@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import KakaoSDKCommon
+import KakaoSDKAuth
 
 @main
 struct UnseApp: App {
@@ -9,7 +10,26 @@ struct UnseApp: App {
 
     var body: some Scene {
         WindowGroup {
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-preview-saju") {
+                let input = BirthInput(year: 1990, month: 3, day: 15, hour: 12, minute: 0, gender: .male, nickname: "테스트")
+                let result = Manse.calculate(year: input.year, month: input.month, day: input.day, hour: input.hour, gender: input.gender)
+                let profile = SajuProfile(input: input, saju: result.saju, daeWoon: result.daeWoon)
+                if let restored = profile.computed {
+                    NavigationStack {
+                        SajuResultView(saju: restored, daeWoon: profile.daeWoon, nickname: input.nickname)
+                    }
+                } else {
+                    Text("Reconstruction 실패")
+                }
+            } else if ProcessInfo.processInfo.arguments.contains("-preview-daily") {
+                DailyFortuneView(user: Self.makePreviewUser())
+            } else {
+                RootView()
+            }
+            #else
             RootView()
+            #endif
         }
         .modelContainer(for: [
             UserProfile.self,
@@ -19,6 +39,17 @@ struct UnseApp: App {
             SajuReading.self,
         ])
     }
+
+    #if DEBUG
+    @MainActor
+    private static func makePreviewUser() -> UserProfile {
+        let input = BirthInput(year: 1990, month: 3, day: 15, hour: 12, minute: 0, gender: .male, nickname: "테스트")
+        let result = Manse.calculate(year: input.year, month: input.month, day: input.day, hour: input.hour, gender: input.gender)
+        let user = UserProfile(nickname: input.nickname, authProvider: "apple")
+        user.sajuProfile = SajuProfile(input: input, saju: result.saju, daeWoon: result.daeWoon)
+        return user
+    }
+    #endif
 }
 
 // MARK: - AppDelegate
@@ -87,10 +118,16 @@ struct MainTabView: View {
                     Label("오늘", systemImage: "sun.max")
                 }
 
-            SajuResultView(user: user)
-                .tabItem {
-                    Label("사주", systemImage: "square.grid.2x2")
+            Group {
+                if let profile = user.sajuProfile, let saju = profile.computed {
+                    SajuResultView(saju: saju, daeWoon: profile.daeWoon, nickname: user.nickname)
+                } else {
+                    Text("사주 정보가 없습니다")
                 }
+            }
+            .tabItem {
+                Label("사주", systemImage: "square.grid.2x2")
+            }
 
             TimelineView(user: user)
                 .tabItem {

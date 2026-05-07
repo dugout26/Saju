@@ -46,6 +46,29 @@ struct ManseTests {
         #expect(saju.month.branch == .卯)
     }
 
+    @Test("2000-01-01 월주 丙子 (입춘 전, 1999 己卯年 子月)")
+    func monthPillar_2000_01_01() {
+        let (saju, _) = Manse.calculate(year: 2000, month: 1, day: 1)
+        #expect(saju.month.stem   == .丙)
+        #expect(saju.month.branch == .子)
+    }
+
+    // MARK: - 부록 B Case 2: 1985-08-25
+
+    @Test("1985-08-25 년주 乙丑")
+    func yearPillar_1985_08_25() {
+        let (saju, _) = Manse.calculate(year: 1985, month: 8, day: 25)
+        #expect(saju.year.stem   == .乙)
+        #expect(saju.year.branch == .丑)
+    }
+
+    @Test("1985-08-25 월주 甲申 (입추 후 申月)")
+    func monthPillar_1985_08_25() {
+        let (saju, _) = Manse.calculate(year: 1985, month: 8, day: 25)
+        #expect(saju.month.stem   == .甲)
+        #expect(saju.month.branch == .申)
+    }
+
     // MARK: - 시주 (Hour Pillar)
 
     @Test("戊 일간 申時(15시) → 庚申")
@@ -56,6 +79,13 @@ struct ManseTests {
         // day.stem is 戊
         #expect(hour.day.stem == .戊)
         #expect(hour.hour?.branch == .申)
+    }
+
+    @Test("2000-01-01 00:00 시주 壬子 (戊일 子時)")
+    func hourPillar_2000_01_01_midnight() {
+        let (saju, _) = Manse.calculate(year: 2000, month: 1, day: 1, hour: 0)
+        #expect(saju.hour?.stem   == .壬)
+        #expect(saju.hour?.branch == .子)
     }
 
     // MARK: - JDN

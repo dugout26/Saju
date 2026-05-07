@@ -8,9 +8,8 @@ struct TimelineView: View {
     @State private var selectedDaeWoon: DaeWoon?
 
     private var currentAge: Int {
-        guard let profile = user?.sajuProfile,
-              let birthYear = profile.birthYear else { return 30 }
-        return Calendar.current.component(.year, from: Date()) - birthYear
+        guard let profile = user?.sajuProfile else { return 30 }
+        return Calendar.current.component(.year, from: Date()) - profile.birthYear
     }
 
     var body: some View {
@@ -132,8 +131,7 @@ struct TimelineView: View {
 
     private func loadDaeWoon() {
         guard let profile = user?.sajuProfile,
-              let json = profile.daeWoonJSON,
-              let data = json.data(using: .utf8) else { return }
+              let data = profile.daeWoonJSON.data(using: .utf8) else { return }
         daeWoon = (try? JSONDecoder().decode([DaeWoon].self, from: data)) ?? []
     }
 }
@@ -250,12 +248,3 @@ struct DaeWoonRow: View {
     }
 }
 
-// MARK: - SajuProfile accessor helper
-
-private extension SajuProfile {
-    var birthYear: Int? {
-        guard let y = Int(birthYearStr) else { return nil }
-        return y
-    }
-    var birthYearStr: String { "" } // placeholder — actual field from Models.swift
-}
