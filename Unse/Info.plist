@@ -26,6 +26,8 @@
     <array>
         <string>UIInterfaceOrientationPortrait</string>
     </array>
+    <key>UIUserInterfaceStyle</key>
+    <string>Light</string>
 
     <!-- Backend (Supabase). anon key는 RLS로 보호되므로 클라이언트 노출 OK. -->
     <key>SUPABASE_URL</key>

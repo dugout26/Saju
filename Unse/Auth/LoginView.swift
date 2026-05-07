@@ -43,7 +43,7 @@ struct LoginView: View {
             }
             .disabled(isAuthenticating)
 
-            SignInWithAppleButton(.signIn) { _ in
+            SignInWithAppleButton(.continue) { _ in
                 // 실제 호출은 onCompletion 대신 SupabaseAuthManager에서 처리 (nonce 필요)
             } onCompletion: { _ in
                 // unused

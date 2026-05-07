@@ -15,6 +15,11 @@ struct UnseApp: App {
         WindowGroup {
             rootContent
                 .environment(subscription)
+                .onOpenURL { url in
+                    if AuthApi.isKakaoTalkLoginUrl(url) {
+                        _ = AuthController.handleOpenUrl(url: url)
+                    }
+                }
         }
         .modelContainer(for: [
             UserProfile.self,
