@@ -1,18 +1,28 @@
 import StoreKit
 import Observation
+import Foundation
+import Supabase
 
 @Observable
 @MainActor
 final class SubscriptionManager {
 
     static let shared = SubscriptionManager()
-    private init() {}
+    private init() {
+        updateListenerTask = Task { [weak self] in
+            for await result in Transaction.updates {
+                guard let self else { continue }
+                await self.handleTransactionUpdate(result)
+            }
+        }
+    }
 
     var products: [Product] = []
     var status: SubscriptionStatus = .free
     var isLoading = false
 
     private let productIds = ["unse.monthly", "unse.yearly"]
+    private var updateListenerTask: Task<Void, Never>?
 
     // MARK: - Load
 
@@ -37,11 +47,59 @@ final class SubscriptionManager {
             let txn = try checkVerified(verification)
             await txn.finish()
             await refreshStatus()
+            await syncToSupabase(transaction: txn, product: product)
         case .userCancelled, .pending:
             break
         @unknown default:
             break
         }
+    }
+
+    private func handleTransactionUpdate(_ result: VerificationResult<Transaction>) async {
+        guard let txn = try? checkVerified(result) else { return }
+        await txn.finish()
+        await refreshStatus()
+        if let product = products.first(where: { $0.id == txn.productID }) {
+            await syncToSupabase(transaction: txn, product: product)
+        }
+    }
+
+    private func syncToSupabase(transaction: Transaction, product: Product) async {
+        guard let userId = try? await SupabaseManager.shared.auth.session.user.id else { return }
+
+        struct UserUpdate: Encodable {
+            let subscription_status: String
+            let subscription_expires_at: Date?
+        }
+        _ = try? await SupabaseManager.shared
+            .from("users")
+            .update(UserUpdate(
+                subscription_status: status == .premium ? "premium" : "free",
+                subscription_expires_at: transaction.expirationDate
+            ))
+            .eq("id", value: userId)
+            .execute()
+
+        struct Sub: Encodable {
+            let user_id: UUID
+            let plan: String
+            let provider: String
+            let provider_subscription_id: String
+            let started_at: Date
+            let current_period_end: Date
+        }
+        let plan = product.id.contains("monthly") ? "monthly" : "yearly"
+        _ = try? await SupabaseManager.shared
+            .from("subscriptions")
+            .upsert(Sub(
+                user_id: userId,
+                plan: plan,
+                provider: "apple_iap",
+                provider_subscription_id: String(transaction.id),
+                started_at: transaction.purchaseDate,
+                current_period_end: transaction.expirationDate ?? transaction.purchaseDate
+            ), onConflict: "provider,provider_subscription_id")
+            .execute()
     }
 
     // MARK: - Restore

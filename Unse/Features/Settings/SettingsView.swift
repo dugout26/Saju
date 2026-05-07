@@ -157,28 +157,28 @@ struct SettingsView: View {
                 }
             }
 
-            Link(destination: URL(string: "https://unse.kr/terms")!) {
-                HStack {
-                    Label("이용약관", systemImage: "doc.text")
-                        .font(.pretendard(14))
-                        .foregroundStyle(.ink1)
-                    Spacer()
-                    Image(systemName: "arrow.up.right")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.ink4)
-                }
+            NavigationLink {
+                LegalDocumentView(kind: .terms)
+            } label: {
+                Label("이용약관", systemImage: "doc.text")
+                    .font(.pretendard(14))
+                    .foregroundStyle(.ink1)
             }
 
-            Link(destination: URL(string: "https://unse.kr/privacy")!) {
-                HStack {
-                    Label("개인정보처리방침", systemImage: "hand.raised")
-                        .font(.pretendard(14))
-                        .foregroundStyle(.ink1)
-                    Spacer()
-                    Image(systemName: "arrow.up.right")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.ink4)
-                }
+            NavigationLink {
+                LegalDocumentView(kind: .privacy)
+            } label: {
+                Label("개인정보처리방침", systemImage: "hand.raised")
+                    .font(.pretendard(14))
+                    .foregroundStyle(.ink1)
+            }
+
+            NavigationLink {
+                LegalDocumentView(kind: .disclaimer)
+            } label: {
+                Label("면책 고지", systemImage: "exclamationmark.shield")
+                    .font(.pretendard(14))
+                    .foregroundStyle(.ink1)
             }
 
             HStack {

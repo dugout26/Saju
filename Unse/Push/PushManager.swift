@@ -1,5 +1,6 @@
 import UserNotifications
 import UIKit
+import Supabase
 
 @MainActor
 final class PushManager: NSObject {
@@ -36,10 +37,15 @@ final class PushManager: NSObject {
 
     func handleDeviceToken(_ tokenData: Data) {
         let token = tokenData.map { String(format: "%02x", $0) }.joined()
+        UserDefaults.standard.set(token, forKey: "apns_device_token")
         Task {
-            // Send token to server for APNs push delivery
-            // APIClient.shared.registerPushToken(token, userId: currentUserId)
-            UserDefaults.standard.set(token, forKey: "apns_device_token")
+            guard let userId = try? await SupabaseManager.shared.auth.session.user.id else { return }
+            struct PushTokenUpdate: Encodable { let push_token: String }
+            _ = try? await SupabaseManager.shared
+                .from("users")
+                .update(PushTokenUpdate(push_token: token))
+                .eq("id", value: userId)
+                .execute()
         }
     }
 
