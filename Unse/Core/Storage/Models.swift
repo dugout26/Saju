@@ -16,7 +16,6 @@ final class UserProfile {
     var createdAt: Date
 
     @Relationship(deleteRule: .cascade) var sajuProfile: SajuProfile?
-    @Relationship(deleteRule: .cascade) var savedSajus: [SajuProfile] = []
 
     init(
         nickname: String,

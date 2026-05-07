@@ -17,7 +17,6 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 profileSection
-                sajuListSection
                 subscriptionSection
                 notificationSection
                 supportSection
@@ -68,29 +67,6 @@ struct SettingsView: View {
                 }
             }
             .padding(.vertical, 6)
-        }
-    }
-
-    @ViewBuilder
-    private var sajuListSection: some View {
-        if let user {
-            Section(header: Text("사주")) {
-                NavigationLink {
-                    SajuListView(user: user)
-                        .environment(sub)
-                } label: {
-                    HStack {
-                        Label("사주 관리", systemImage: "person.text.rectangle")
-                            .font(.pretendard(14))
-                            .foregroundStyle(.ink1)
-                        Spacer()
-                        let count = (user.sajuProfile != nil ? 1 : 0) + user.savedSajus.count
-                        Text("\(count)명")
-                            .font(.pretendard(13))
-                            .foregroundStyle(.ink3)
-                    }
-                }
-            }
         }
     }
 

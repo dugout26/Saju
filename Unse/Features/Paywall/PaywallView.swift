@@ -79,7 +79,7 @@ struct PaywallView: View {
                     Text("하루결 PRO")
                         .font(.serifKR(28, .semibold))
                         .foregroundStyle(.ink1)
-                    Text("가족·친구 사주 4명까지\n자세한 풀이와 매일 운세")
+                    Text("자세한 5단계 풀이와\n무제한 AI 챗봇")
                         .font(.pretendard(14))
                         .foregroundStyle(.ink2)
                         .multilineTextAlignment(.center)
@@ -100,11 +100,6 @@ struct PaywallView: View {
 
     private var featureList: some View {
         VStack(spacing: 12) {
-            featureRow(
-                icon: "person.3.fill",
-                title: "가족·친구 사주 4명까지",
-                description: "본인 + 추가 3명까지 등록·관리"
-            )
             featureRow(
                 icon: "sparkles",
                 title: "무제한 AI 챗봇",
