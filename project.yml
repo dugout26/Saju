@@ -70,8 +70,6 @@ schemes:
       config: Debug
     test:
       config: Debug
-      targets:
-        - UnseTests
     profile:
       config: Release
     archive:
