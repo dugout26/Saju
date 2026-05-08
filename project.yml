@@ -56,6 +56,10 @@ targets:
         product: FirebaseMessaging
       - package: Firebase
         product: FirebaseCrashlytics
+      - package: Firebase
+        product: FirebaseAnalytics
+      - package: Firebase
+        product: FirebasePerformance
     preBuildScripts:
       - script: |
           if [[ "$(uname -m)" == arm64 ]]; then

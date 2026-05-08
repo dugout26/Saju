@@ -3,6 +3,7 @@ import Observation
 import Foundation
 @preconcurrency import Supabase
 import FirebaseCrashlytics
+import FirebaseAnalytics
 
 @Observable
 @MainActor
@@ -51,6 +52,12 @@ final class SubscriptionManager {
             let verified = await verifyOnServer(verification: verification)
             if verified, case .verified(let txn) = verification {
                 await txn.finish()
+                Analytics.logEvent(AnalyticsEventPurchase, parameters: [
+                    AnalyticsParameterTransactionID: String(txn.id),
+                    AnalyticsParameterCurrency: product.priceFormatStyle.currencyCode,
+                    AnalyticsParameterValue: NSDecimalNumber(decimal: product.price).doubleValue,
+                    AnalyticsParameterItemID: product.id
+                ])
             }
             await refreshStatus()
         case .userCancelled, .pending:
