@@ -1,14 +1,18 @@
 import SwiftUI
+import UIKit
 
 extension Color {
-    // MARK: - Base
-    static let bg        = Color(hex: 0xFBFAF7)
-    static let surface   = Color.white
-    static let ink1      = Color(hex: 0x1B1A2E)
-    static let ink2      = Color(hex: 0x4A4860)
-    static let ink3      = Color(hex: 0x8B89A0)
-    static let ink4      = Color(hex: 0xC7C5D6)
-    static let line      = Color(hex: 0xEFEDE6)
+    // MARK: - Base (Dynamic — light/dark)
+    // Dark variant은 base white(0xFBFAF7) → dark slate(0x111114), surface white → dark gray.
+    // ink scale은 dark에서 거꾸로 (배경이 어두우면 텍스트 밝게).
+    // 라벤더 등 accent는 양 모드에서 같은 hue 유지 (브랜드 일관성).
+    static let bg        = Color(light: 0xFBFAF7, dark: 0x111114)
+    static let surface   = Color(light: 0xFFFFFF, dark: 0x1C1C20)
+    static let ink1      = Color(light: 0x1B1A2E, dark: 0xF2F1F8)
+    static let ink2      = Color(light: 0x4A4860, dark: 0xC7C5D6)
+    static let ink3      = Color(light: 0x8B89A0, dark: 0x8B89A0)   // 중간 단계는 양쪽 동일
+    static let ink4      = Color(light: 0xC7C5D6, dark: 0x4A4860)
+    static let line      = Color(light: 0xEFEDE6, dark: 0x2D2D33)
 
     // MARK: - Pastel accents
     static let lavender     = Color(hex: 0xC9B8F0)
@@ -56,6 +60,26 @@ extension Color {
             green: Double((hex >> 8)  & 0xFF) / 255,
             blue: Double(hex          & 0xFF) / 255,
             opacity: alpha
+        )
+    }
+
+    /// 다크모드 자동 전환 — UIColor.dynamicProvider로 trait 변화에 반응.
+    init(light: UInt32, dark: UInt32) {
+        self = Color(uiColor: UIColor { trait in
+            trait.userInterfaceStyle == .dark
+                ? UIColor(hex: dark)
+                : UIColor(hex: light)
+        })
+    }
+}
+
+extension UIColor {
+    convenience init(hex: UInt32, alpha: CGFloat = 1) {
+        self.init(
+            red: CGFloat((hex >> 16) & 0xFF) / 255,
+            green: CGFloat((hex >> 8) & 0xFF) / 255,
+            blue: CGFloat(hex & 0xFF) / 255,
+            alpha: alpha
         )
     }
 }

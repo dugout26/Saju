@@ -2,13 +2,14 @@ import SwiftUI
 
 extension Font {
     // MARK: - Noto Serif KR
+    // relativeTo:로 Dynamic Type 자동 스케일 — 사용자 시스템 글자 크기 변경 반영.
     static func serifKR(_ size: CGFloat, _ weight: Font.Weight = .semibold) -> Font {
-        .custom("NotoSerifKR-\(weight.notoSerifName)", size: size)
+        .custom("NotoSerifKR-\(weight.notoSerifName)", size: size, relativeTo: .body)
     }
 
     // MARK: - Pretendard
     static func pretendard(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .custom("Pretendard-\(weight.pretendardName)", size: size)
+        .custom("Pretendard-\(weight.pretendardName)", size: size, relativeTo: .body)
     }
 }
 
