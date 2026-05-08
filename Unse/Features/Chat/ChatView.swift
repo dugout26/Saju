@@ -5,39 +5,22 @@ struct ChatView: View {
 
     @Environment(SubscriptionManager.self) private var sub
     @State private var vm: ChatViewModel
-    @State private var rewardedLoader = RewardedAdLoader()
-    @State private var isWatchingAd = false
     @FocusState private var inputFocused: Bool
 
     let initialQuestion: String?
 
-    init(user: UserProfile?, initialQuestion: String? = nil) {
+    /// nickname을 명시 전달 가능 — SajuResultView처럼 user 없이 사주만 가진 진입점에서 사용.
+    init(user: UserProfile?, nickname: String? = nil, initialQuestion: String? = nil) {
         self.user = user
         self.initialQuestion = initialQuestion
-        _vm = State(wrappedValue: ChatViewModel(nickname: user?.nickname ?? "지수"))
+        let resolvedNickname = nickname ?? user?.nickname ?? "사용자"
+        _vm = State(wrappedValue: ChatViewModel(nickname: resolvedNickname))
     }
 
-    /// 무료 사용자: 광고 시청 후 1턴. PRO: 즉시.
-    private func sendWithGate() {
+    /// View 책임은 input focus 해제 + VM 위임만. 게이팅 / 광고 / 전송은 VM이 처리.
+    private func send() {
         inputFocused = false
-        if sub.isPremium {
-            Task { await vm.send() }
-            return
-        }
-        // 무료: 광고 시청 → 시청 완료 → 1턴 전송
-        isWatchingAd = true
-        rewardedLoader.loadAndShow(unitId: AdsManager.rewardedUnitId) {
-            isWatchingAd = false
-            Task { await vm.send() }
-        }
-        // 광고 load 실패 시 fallback (1.5초 후 silent grant)
-        Task {
-            try? await Task.sleep(for: .seconds(1.5))
-            if isWatchingAd {
-                isWatchingAd = false
-                await vm.send()
-            }
-        }
+        vm.sendGated(isPremium: sub.isPremium)
     }
 
     var body: some View {
@@ -151,7 +134,7 @@ struct ChatView: View {
                 TextField("궁금한 점을 물어보세요", text: $vm.inputText)
                     .font(.pretendard(14))
                     .focused($inputFocused)
-                    .onSubmit { sendWithGate() }
+                    .onSubmit { send() }
             }
             .padding(.horizontal, 16)
             .frame(height: 44)
@@ -159,7 +142,7 @@ struct ChatView: View {
             .clipShape(Capsule())
             .overlay(Capsule().strokeBorder(Color.line, lineWidth: 1))
 
-            Button(action: sendWithGate) {
+            Button(action: send) {
                 Image(systemName: sub.isPremium ? "arrow.right" : "play.rectangle.fill")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
@@ -167,7 +150,7 @@ struct ChatView: View {
                     .background(Color.ink1)
                     .clipShape(Circle())
             }
-            .disabled(vm.inputText.trimmingCharacters(in: .whitespaces).isEmpty || vm.isStreaming || isWatchingAd)
+            .disabled(vm.inputText.trimmingCharacters(in: .whitespaces).isEmpty || vm.isStreaming || vm.isWatchingAd)
             .opacity(vm.inputText.trimmingCharacters(in: .whitespaces).isEmpty ? 0.4 : 1)
         }
     }

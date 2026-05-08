@@ -53,9 +53,20 @@ serve(async (req) => {
         provider: "kakao",
       },
     });
-    if (created.error && !/already|exists|registered/i.test(created.error.message)) {
-      console.error("[kakao-auth] createUser failed:", created.error);
-      return jsonError("로그인 처리 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.", 500);
+    // Supabase admin.createUser는 이미 존재하는 user에 대해 422 status 또는
+    // "already_registered" / "user_already_exists" 에러를 반환. 둘 다 정상 케이스로 처리.
+    if (created.error) {
+      const code = (created.error as any).code ?? "";
+      const status = (created.error as any).status ?? 0;
+      const isAlreadyExists =
+        status === 422 ||
+        /already|exists|registered/i.test(created.error.message) ||
+        code === "email_exists" ||
+        code === "user_already_exists";
+      if (!isAlreadyExists) {
+        console.error("[kakao-auth] createUser failed:", created.error);
+        return jsonError("로그인 처리 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.", 500);
+      }
     }
 
     // 4. magic-link token 발급 (이메일 발송 X, token_hash만 추출)

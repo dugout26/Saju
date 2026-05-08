@@ -52,9 +52,19 @@ enum SajuEditService {
         saju.hourStem = result.saju.hour?.stem.character
         saju.hourBranch = result.saju.hour?.branch.character
 
+        // JSON 인코딩 실패 시 빈 문자열 저장하지 말고 throw — 데이터 손상 방지
         let elDict = Dictionary(uniqueKeysWithValues: result.saju.fiveElements.map { ($0.key.rawValue, $0.value) })
-        saju.fiveElementsJSON = (try? String(data: JSONEncoder().encode(elDict), encoding: .utf8)) ?? "{}"
-        saju.daeWoonJSON = (try? String(data: JSONEncoder().encode(result.daeWoon), encoding: .utf8)) ?? "[]"
+        let elData = try JSONEncoder().encode(elDict)
+        guard let elJSON = String(data: elData, encoding: .utf8) else {
+            throw SajuEditError.encodingFailed
+        }
+        saju.fiveElementsJSON = elJSON
+
+        let dwData = try JSONEncoder().encode(result.daeWoon)
+        guard let dwJSON = String(data: dwData, encoding: .utf8) else {
+            throw SajuEditError.encodingFailed
+        }
+        saju.daeWoonJSON = dwJSON
         saju.lastModifiedAt = Date()
 
         user.sajuModifiedCount += 1
@@ -80,9 +90,11 @@ enum SajuEditService {
 
 enum SajuEditError: LocalizedError {
     case profileMissing
+    case encodingFailed
     var errorDescription: String? {
         switch self {
-        case .profileMissing: "사주 정보를 찾을 수 없어요. 다시 시도해주세요."
+        case .profileMissing:  "사주 정보를 찾을 수 없어요. 다시 시도해주세요."
+        case .encodingFailed:  "사주 데이터 변환에 실패했어요. 다시 시도해주세요."
         }
     }
 }

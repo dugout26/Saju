@@ -76,7 +76,7 @@ struct SajuResultView: View {
             get: { chatPrompt.map { ChatPromptItem(text: $0) } },
             set: { chatPrompt = $0?.text }
         )) { item in
-            ChatView(user: nil, initialQuestion: item.text)
+            ChatView(user: nil, nickname: nickname, initialQuestion: item.text)
                 .environment(sub)
         }
         .task { await loadReadings() }

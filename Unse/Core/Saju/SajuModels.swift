@@ -1,7 +1,7 @@
 import Foundation
 
 // MARK: - 천간 (Heavenly Stems)
-enum HeavenlyStem: Int, CaseIterable, Codable {
+enum HeavenlyStem: Int, CaseIterable, Codable, Sendable {
     case 甲 = 0, 乙, 丙, 丁, 戊, 己, 庚, 辛, 壬, 癸
 
     var character: String { String(describing: self) }
@@ -18,7 +18,7 @@ enum HeavenlyStem: Int, CaseIterable, Codable {
 }
 
 // MARK: - 지지 (Earthly Branches)
-enum EarthlyBranch: Int, CaseIterable, Codable {
+enum EarthlyBranch: Int, CaseIterable, Codable, Sendable {
     case 子 = 0, 丑, 寅, 卯, 辰, 巳, 午, 未, 申, 酉, 戌, 亥
 
     var character: String { String(describing: self) }
@@ -33,7 +33,7 @@ enum EarthlyBranch: Int, CaseIterable, Codable {
 }
 
 // MARK: - 오행 (Five Elements)
-enum Element: String, CaseIterable, Codable {
+enum Element: String, CaseIterable, Codable, Sendable {
     case wood  = "木"
     case fire  = "火"
     case earth = "土"
@@ -52,7 +52,7 @@ enum Element: String, CaseIterable, Codable {
 }
 
 // MARK: - 기둥 (Pillar)
-struct Pillar: Equatable, Codable {
+struct Pillar: Equatable, Codable, Sendable {
     let stem:   HeavenlyStem
     let branch: EarthlyBranch
 
@@ -66,7 +66,7 @@ struct Pillar: Equatable, Codable {
 }
 
 // MARK: - 사주 계산 결과
-struct SajuComputed: Equatable {
+struct SajuComputed: Equatable, Sendable {
     let year:  Pillar
     let month: Pillar
     let day:   Pillar
@@ -91,7 +91,7 @@ struct SajuComputed: Equatable {
 }
 
 // MARK: - 대운 (Major Fortune Cycle)
-struct DaeWoon: Identifiable, Codable {
+struct DaeWoon: Identifiable, Codable, Sendable {
     var id: Int { startAge }
     let startAge: Int
     let pillar: Pillar

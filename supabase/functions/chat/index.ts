@@ -29,10 +29,7 @@ serve(async (req) => {
     const supabase = getSupabaseClient(req);
     const userId = await getUserId(supabase);
 
-    // 광고 모델: 무료 사용자도 호출 가능 (클라이언트가 광고 시청 후 1턴 호출).
-    // 어뷰즈는 출시 후 데이터 보고 결정 (SSAI 토큰 검증 또는 daily counter 추가).
-
-    // 사주 + 닉네임 조회 (chat 시스템 프롬프트와 user message context에 주입)
+    // 사주 + 닉네임 + 구독 상태 조회
     const { data: profile } = await supabase
       .from("saju_profiles")
       .select("year_pillar, month_pillar, day_pillar, hour_pillar, day_master, five_elements_dist, gender")
@@ -42,9 +39,34 @@ serve(async (req) => {
 
     const { data: userInfo } = await supabase
       .from("users")
-      .select("nickname")
+      .select("nickname, subscription_status")
       .eq("id", userId)
       .single();
+
+    // 서버 측 daily quota — 무료 사용자 하루 10턴 cap (광고 모델 abuse 방지).
+    // PRO/trial은 unlimited. 클라이언트가 광고 우회해도 서버에서 차단.
+    const isPremium = userInfo?.subscription_status === "trial" ||
+                      userInfo?.subscription_status === "premium";
+    if (!isPremium) {
+      const startOfDay = new Date();
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      const { count } = await supabase
+        .from("chat_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("role", "user")
+        .gte("created_at", startOfDay.toISOString());
+      if ((count ?? 0) >= 10) {
+        return jsonError("오늘의 무료 질문 한도(10회)를 모두 사용하셨어요. PRO 구독으로 무제한 이용하세요.", 429);
+      }
+    }
+
+    // gender 명시적 매핑 — "male"/"female" 외 값은 명시적 unknown 처리
+    const genderLabel: string = profile.gender === "male"
+      ? "남"
+      : profile.gender === "female"
+        ? "여"
+        : "(미상)";
 
     const saju: SajuContext = {
       yearPillar: profile.year_pillar,
@@ -53,7 +75,7 @@ serve(async (req) => {
       hourPillar: profile.hour_pillar ?? undefined,
       dayMaster: profile.day_master,
       fiveElements: profile.five_elements_dist ?? {},
-      gender: profile.gender === "male" ? "남" : "여",
+      gender: genderLabel,
       nickname: userInfo?.nickname ?? undefined,
     };
 

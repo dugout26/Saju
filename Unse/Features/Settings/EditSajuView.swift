@@ -165,11 +165,11 @@ struct EditSajuView: View {
         FormField(label: "닉네임") {
             TextField("앱에서 부를 이름", text: $vm.input.nickname)
                 .font(.pretendard(16))
-                .padding(.horizontal, 14)
+                .padding(.horizontal, Spacing.formField)
                 .frame(height: 52)
                 .background(Color.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.line, lineWidth: 1))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.input))
+                .overlay(RoundedRectangle(cornerRadius: Radius.input).strokeBorder(Color.line, lineWidth: 1))
         }
     }
 

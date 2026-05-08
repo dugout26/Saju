@@ -375,8 +375,14 @@ private struct AIAnalysisLoadingView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(LinearGradient(colors: [.lavenderSoft, .bg], startPoint: .top, endPoint: .bottom).ignoresSafeArea())
         .task {
+            // task가 cancel되면 sleep이 throw — try?로 nil 받고 loop가 step을 빠르게
+            // 증가시키는 race를 방지하기 위해 do/catch로 cleanup 후 return.
             for _ in 0..<20 {
-                try? await Task.sleep(for: .seconds(1.0))
+                do {
+                    try await Task.sleep(for: .seconds(1.0))
+                } catch {
+                    return
+                }
                 withAnimation(.easeInOut(duration: 0.3)) { step += 1 }
             }
         }

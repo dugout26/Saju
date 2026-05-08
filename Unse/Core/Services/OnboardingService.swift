@@ -27,9 +27,10 @@ enum OnboardingService {
             input: input, saju: saju, daeWoon: daeWoon
         )
 
-        // provider 판별 — kakao_id가 있으면 카카오, 아니면 apple
-        let session = try? await SupabaseManager.shared.auth.session
-        let isKakao = (session?.user.userMetadata["kakao_id"]) != nil
+        // provider 판별 — 세션 조회 실패 시 fallback "apple"이 아니라 throw.
+        // 카카오 사용자가 잘못 저장되는 것 방지.
+        let session = try await SupabaseManager.shared.auth.session
+        let isKakao = session.user.userMetadata["kakao_id"] != nil
         let authProvider = isKakao ? "kakao" : "apple"
 
         let user = UserProfile(nickname: input.nickname, authProvider: authProvider)

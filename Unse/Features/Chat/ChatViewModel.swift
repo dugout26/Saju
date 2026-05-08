@@ -7,6 +7,7 @@ final class ChatViewModel {
     var messages: [ChatBubble] = []
     var inputText = ""
     var isStreaming = false
+    var isWatchingAd = false
 
     let suggestedQuestions = [
         "이번 달 금전운은 어떤가요?",
@@ -14,11 +15,40 @@ final class ChatViewModel {
         "저랑 잘 맞는 사람의 일간은?",
     ]
 
+    private let rewardedLoader = RewardedAdLoader()
+
     init(nickname: String) {
         messages = [
             ChatBubble(role: .assistant,
                        text: "안녕하세요 \(nickname)님. 사주에 대해 궁금한 점을 자유롭게 물어보세요.")
         ]
+    }
+
+    /// View → VM 위임. 무료: 광고 시청 후 1턴 / PRO: 즉시.
+    /// 가드 — 빈 입력 / streaming 중 / 광고 시청 중이면 무시.
+    /// 광고 reward callback과 1.5s fallback이 모두 grant() 하므로 hasGranted 플래그로 한 번만 send().
+    func sendGated(isPremium: Bool) {
+        let trimmed = inputText.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, !isStreaming, !isWatchingAd else { return }
+
+        if isPremium {
+            Task { await send() }
+            return
+        }
+
+        isWatchingAd = true
+        var hasGranted = false
+        let grant: @MainActor () -> Void = { [weak self] in
+            guard let self, !hasGranted else { return }
+            hasGranted = true
+            self.isWatchingAd = false
+            Task { await self.send() }
+        }
+        rewardedLoader.loadAndShow(unitId: AdsManager.rewardedUnitId) { grant() }
+        Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            grant()
+        }
     }
 
     func send() async {
