@@ -1,6 +1,7 @@
 import Foundation
 @preconcurrency import Supabase
 import FirebaseCrashlytics
+import FirebaseAnalytics
 
 /// Apple/Kakao 로그인을 Supabase Auth에 연결.
 /// 로그인 성공 시 public.users row를 upsert (auth.users.id = users.id).
@@ -34,6 +35,8 @@ enum SupabaseAuthManager {
 
         // Crashlytics에 user 식별자 연결 (PII 없음 — Supabase UUID만)
         Crashlytics.crashlytics().setUserID(session.user.id.uuidString)
+        // Analytics: 표준 login 이벤트 (Apple).
+        Analytics.logEvent(AnalyticsEventLogin, parameters: [AnalyticsParameterMethod: "apple"])
 
         return session.user.id
     }
@@ -79,6 +82,7 @@ enum SupabaseAuthManager {
         )
 
         Crashlytics.crashlytics().setUserID(session.user.id.uuidString)
+        Analytics.logEvent(AnalyticsEventLogin, parameters: [AnalyticsParameterMethod: "kakao"])
 
         return session.user.id
     }
