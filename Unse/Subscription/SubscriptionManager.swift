@@ -20,6 +20,8 @@ final class SubscriptionManager {
     var products: [Product] = []
     var status: SubscriptionStatus = .free
     var isLoading = false
+    /// 서버 verify 실패 — UI에서 alert 표시 + retry 유도.
+    var verifyError: String?
 
     private let productIds = ["unse.monthly", "unse.yearly"]
     private var updateListenerTask: Task<Void, Never>?
@@ -44,9 +46,11 @@ final class SubscriptionManager {
         let result = try await product.purchase()
         switch result {
         case .success(let verification):
-            let txn = try checkVerified(verification)
-            await txn.finish()
-            await verifyOnServer(verification: verification)
+            // 서버 verify 성공 후에만 txn.finish — 서버 fail 시 다음 앱 실행에서 재시도 가능.
+            let verified = await verifyOnServer(verification: verification)
+            if verified, case .verified(let txn) = verification {
+                await txn.finish()
+            }
             await refreshStatus()
         case .userCancelled, .pending:
             break
@@ -57,20 +61,25 @@ final class SubscriptionManager {
 
     private func handleTransactionUpdate(_ result: VerificationResult<Transaction>) async {
         guard (try? checkVerified(result)) != nil else { return }
-        if case .verified(let txn) = result {
+        let verified = await verifyOnServer(verification: result)
+        if verified, case .verified(let txn) = result {
             await txn.finish()
         }
-        await verifyOnServer(verification: result)
         await refreshStatus()
     }
 
-    /// 서버 측 trust source. 클라이언트 단독 검증을 신뢰하지 않고 verify-receipt
-    /// Edge Function이 JWS payload (bundleId, productId, expires) 재검증 + service_role로
-    /// users.subscription_status 갱신. 클라이언트는 서버 응답으로 status 인식.
-    private func verifyOnServer(verification: VerificationResult<Transaction>) async {
+    /// 서버 측 trust source. verify-receipt Edge Function이 App Store Server API로
+    /// trusted transaction fetch → bundleId/productId/expires 검증 + service_role로
+    /// users.subscription_status + subscriptions 갱신.
+    /// - returns: 서버 검증 + DB 갱신 성공 여부. true면 호출자가 txn.finish 안전.
+    @discardableResult
+    private func verifyOnServer(verification: VerificationResult<Transaction>) async -> Bool {
         let signedJWS = verification.jwsRepresentation
 
-        guard let session = try? await SupabaseManager.shared.auth.session else { return }
+        guard let session = try? await SupabaseManager.shared.auth.session else {
+            verifyError = "구독 동기화 실패 — 로그인 세션을 확인할 수 없어요."
+            return false
+        }
 
         var request = URLRequest(url: Endpoint.verifyReceipt.url)
         request.httpMethod = "POST"
@@ -81,16 +90,34 @@ final class SubscriptionManager {
         request.httpBody = try? JSONEncoder().encode(Body(signed_transaction: signedJWS))
 
         do {
-            let (_, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-                print("[SubscriptionManager] verify-receipt failed: status \((response as? HTTPURLResponse)?.statusCode ?? -1)")
-                return
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                verifyError = "구독 동기화 실패 — 네트워크 응답이 올바르지 않아요."
+                return false
             }
-            // 서버가 users.subscription_status update 완료. refreshStatus가 다음 단계에서 entitlement 재확인.
+            guard http.statusCode == 200 else {
+                let serverMsg = (try? JSONDecoder().decode(ErrorBody.self, from: data))?.error
+                verifyError = serverMsg ?? "구독 동기화 실패 (status \(http.statusCode))."
+                return false
+            }
+            // 서버 응답으로 local status 즉시 갱신 (refreshStatus는 entitlement도 다시 확인).
+            if let resp = try? JSONDecoder().decode(VerifyResponse.self, from: data) {
+                status = resp.is_premium ? .premium : .free
+            }
+            verifyError = nil
+            return true
         } catch {
-            print("[SubscriptionManager] verify-receipt error: \(error)")
+            verifyError = "구독 동기화 실패 — 네트워크 오류. 잠시 후 다시 시도해주세요."
+            return false
         }
     }
+
+    private struct VerifyResponse: Decodable {
+        let is_premium: Bool
+        let subscription_status: String
+        let expires_at: Int64?
+    }
+    private struct ErrorBody: Decodable { let error: String }
 
     // MARK: - Restore
 
