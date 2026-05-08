@@ -52,11 +52,17 @@ final class SubscriptionManager {
             let verified = await verifyOnServer(verification: verification)
             if verified, case .verified(let txn) = verification {
                 await txn.finish()
+                // GA4 스펙: 상품 데이터는 items 배열 안에. iOS SDK 16.20.0+에서
+                // top-level item 파라미터는 BigQuery로 전달되지 않음.
+                let item: [String: Any] = [
+                    AnalyticsParameterItemID: product.id,
+                    AnalyticsParameterPrice: NSDecimalNumber(decimal: product.price).doubleValue
+                ]
                 Analytics.logEvent(AnalyticsEventPurchase, parameters: [
                     AnalyticsParameterTransactionID: String(txn.id),
                     AnalyticsParameterCurrency: product.priceFormatStyle.currencyCode,
                     AnalyticsParameterValue: NSDecimalNumber(decimal: product.price).doubleValue,
-                    AnalyticsParameterItemID: product.id
+                    AnalyticsParameterItems: [item]
                 ])
             }
             await refreshStatus()

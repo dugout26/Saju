@@ -4,7 +4,6 @@ import KakaoSDKCommon
 import KakaoSDKAuth
 import FirebaseCore
 import FirebaseCrashlytics
-import FirebaseAnalytics
 import FirebasePerformance
 import AppTrackingTransparency
 
@@ -80,10 +79,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         if Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil {
             FirebaseApp.configure()
             // Crashlytics + Performance는 FirebaseApp.configure 후 자동 시작.
-            // Analytics도 자동이지만 명시적 참조로 활성 보장.
+            // Performance는 sharedInstance로 명시 참조 — Analytics는 자동 활성화라 불필요.
             _ = Crashlytics.crashlytics()
             _ = Performance.sharedInstance()
-            _ = Analytics.appInstanceID()  // first-touch 기록 trigger
         }
         // Kakao SDK 초기화 (Info.plist의 KAKAO_APP_KEY 사용). 빈 키면 skip.
         let kakaoKey = Bundle.main.object(forInfoDictionaryKey: "KAKAO_APP_KEY") as? String ?? ""
