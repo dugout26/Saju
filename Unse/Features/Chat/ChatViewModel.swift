@@ -1,5 +1,6 @@
 import Observation
 import Foundation
+import FirebaseCrashlytics
 
 @Observable
 @MainActor
@@ -74,6 +75,7 @@ final class ChatViewModel {
                 messages[idx] = assistantBubble
             }
         } catch {
+            Crashlytics.crashlytics().record(error: error)
             messages[idx].text = "잠시 오류가 발생했어요. 다시 시도해주세요."
         }
     }

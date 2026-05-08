@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import FirebaseCrashlytics
 
 /// 본인 사주 정보 편집. 저장 시 SwiftData + Supabase 양쪽 동기화.
 /// 출생 정보 변경 제한: Free 평생 1회 / PRO 1일 1회. 닉네임만 변경 시엔 무제한.
@@ -235,6 +236,7 @@ struct EditSajuView: View {
                 )
                 showRecomputing = true
             } catch {
+                Crashlytics.crashlytics().record(error: error)
                 errorMessage = "저장 중 오류가 발생했어요. 다시 시도해주세요.\n(\(error.localizedDescription))"
             }
             isSaving = false
@@ -249,6 +251,7 @@ struct EditSajuView: View {
                 )
                 dismiss()
             } catch {
+                Crashlytics.crashlytics().record(error: error)
                 errorMessage = "저장 실패. 다시 시도해주세요.\n(\(error.localizedDescription))"
             }
             isSaving = false

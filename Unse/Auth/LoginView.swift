@@ -1,5 +1,6 @@
 import AuthenticationServices
 import SwiftUI
+import FirebaseCrashlytics
 
 struct LoginView: View {
     @State private var isAuthenticating = false
@@ -87,6 +88,7 @@ struct LoginView: View {
                 _ = try await SupabaseAuthManager.signInWithApple()
                 showBirthInfo = true
             } catch {
+                Crashlytics.crashlytics().record(error: error)
                 errorMessage = "로그인에 실패했어요. 다시 시도해 주세요.\n(\(error.localizedDescription))"
             }
             isAuthenticating = false
@@ -101,6 +103,7 @@ struct LoginView: View {
                 _ = try await SupabaseAuthManager.signInWithKakao()
                 showBirthInfo = true
             } catch {
+                Crashlytics.crashlytics().record(error: error)
                 errorMessage = "로그인에 실패했어요. 다시 시도해 주세요.\n(\(error.localizedDescription))"
             }
             isAuthenticating = false

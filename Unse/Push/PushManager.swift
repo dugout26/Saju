@@ -3,6 +3,7 @@ import UIKit
 @preconcurrency import Supabase
 import FirebaseCore
 import FirebaseMessaging
+import FirebaseCrashlytics
 
 @MainActor
 final class PushManager: NSObject {
@@ -25,6 +26,7 @@ final class PushManager: NSObject {
             }
             return granted
         } catch {
+            Crashlytics.crashlytics().record(error: error)
             return false
         }
     }

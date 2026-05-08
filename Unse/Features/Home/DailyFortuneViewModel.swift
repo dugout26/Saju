@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import FirebaseCrashlytics
 
 // 오늘/내일 운세 로딩 상태 + 광고 게이팅 — DailyFortuneView UI 밖으로 분리.
 // SwiftUI 의존성 없음 (testable).
@@ -24,6 +25,7 @@ final class DailyFortuneViewModel {
             let dto = try await APIClient.shared.fetchDailyFortune(dayPillarOfDate: dayPillar)
             snapshot = DailyFortuneSnapshot(dto: dto)
         } catch {
+            Crashlytics.crashlytics().record(error: error)
             loadError = error.localizedDescription
         }
         isLoading = false

@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import FirebaseCrashlytics
 
 struct SettingsView: View {
     var user: UserProfile?
@@ -177,6 +178,7 @@ struct SettingsView: View {
                 do {
                     try SettingsService.updatePushEnabled(newValue, user: user, modelContext: modelContext)
                 } catch {
+                    Crashlytics.crashlytics().record(error: error)
                     pushSaveError = "알림 설정 저장 실패. 다시 시도해주세요."
                 }
             }
@@ -198,6 +200,7 @@ struct SettingsView: View {
                             newValue, user: user, nickname: nickname, modelContext: modelContext
                         )
                     } catch {
+                        Crashlytics.crashlytics().record(error: error)
                         pushSaveError = "알림 시간 저장 실패. 다시 시도해주세요."
                     }
                 }
@@ -314,6 +317,7 @@ struct SettingsView: View {
         do {
             try SettingsService.deleteAccount(user: user, modelContext: modelContext)
         } catch {
+            Crashlytics.crashlytics().record(error: error)
             deleteError = "계정 삭제 실패. 다시 시도해주세요.\n(\(error.localizedDescription))"
         }
     }
@@ -324,6 +328,7 @@ struct SettingsView: View {
             do {
                 try await SettingsService.logout(user: user, modelContext: modelContext)
             } catch {
+                Crashlytics.crashlytics().record(error: error)
                 logoutError = "로그아웃 실패. 잠시 후 다시 시도해주세요.\n(\(error.localizedDescription))"
             }
         }

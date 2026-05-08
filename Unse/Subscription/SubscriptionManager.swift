@@ -2,6 +2,7 @@ import StoreKit
 import Observation
 import Foundation
 @preconcurrency import Supabase
+import FirebaseCrashlytics
 
 @Observable
 @MainActor
@@ -107,6 +108,7 @@ final class SubscriptionManager {
             verifyError = nil
             return true
         } catch {
+            Crashlytics.crashlytics().record(error: error)
             verifyError = "구독 동기화 실패 — 네트워크 오류. 잠시 후 다시 시도해주세요."
             return false
         }
