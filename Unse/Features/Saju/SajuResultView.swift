@@ -13,14 +13,6 @@ struct SajuResultView: View {
     @State private var showPaywall = false
     @State private var chatPrompt: String?
 
-    private var pillarData: [(label: String, pillar: Pillar)] {
-        [("시주", saju.hour), ("일주", saju.day), ("월주", saju.month), ("년주", saju.year)]
-            .compactMap { label, p in p.map { (label, $0) } }
-            .filter { $0.label != "시주" || saju.hour != nil }
-        // Always show year/month/day; hour only if available
-        + (saju.hour == nil ? [("년주", saju.year), ("월주", saju.month), ("일주", saju.day)] : [])
-    }
-
     private var orderedPillars: [(label: String, pillar: Pillar)] {
         var result: [(String, Pillar)] = []
         if let h = saju.hour { result.append(("시주", h)) }
