@@ -119,8 +119,14 @@ struct AnalyzingView: View {
         // 부수 효과는 Service에 위임 — View는 UI만 담당.
         let saveTask = Task { try await runSave(result: result) }
 
+        // task cancel(view dismiss) 시 sleep이 throw — try?로 nil 받고 step 폭주 방지하기 위해
+        // do/catch return으로 조기 종료. saveTask는 별도 Task라 자동 cancel 전파.
         for i in steps.indices {
-            try? await Task.sleep(for: .seconds(1.1))
+            do {
+                try await Task.sleep(for: .seconds(1.1))
+            } catch {
+                return
+            }
             withAnimation { step = i + 1 }
         }
 
@@ -134,7 +140,12 @@ struct AnalyzingView: View {
         // 풀이 prefetch (background, 결과 무시 — caching 만 됨)
         OnboardingService.prefetchReadings(saju: result.saju, nickname: vm.input.nickname)
 
-        try? await Task.sleep(for: .seconds(0.5))
+        // 마지막 pause — cancel 시 onComplete 호출 안 함 (view 이미 dismiss됨)
+        do {
+            try await Task.sleep(for: .seconds(0.5))
+        } catch {
+            return
+        }
 
         // edit 흐름: onComplete가 있으면 호출. onboarding: RootView @Query가 자동 swap.
         onComplete?()
