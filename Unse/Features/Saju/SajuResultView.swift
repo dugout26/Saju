@@ -7,12 +7,11 @@ struct SajuResultView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(SubscriptionManager.self) private var sub
+    @State private var vm = SajuResultViewModel()
     @State private var showDaily = false
     @State private var showHan = true
     @State private var showPaywall = false
     @State private var chatPrompt: String?
-    @State private var stage1Text: String?
-    @State private var stage2Text: String?
 
     private var pillarData: [(label: String, pillar: Pillar)] {
         [("시주", saju.hour), ("일주", saju.day), ("월주", saju.month), ("년주", saju.year)]
@@ -79,15 +78,7 @@ struct SajuResultView: View {
             ChatView(user: nil, nickname: nickname, initialQuestion: item.text)
                 .environment(sub)
         }
-        .task { await loadReadings() }
-    }
-
-    private func loadReadings() async {
-        async let s1 = try? await APIClient.shared.fetchSajuReading(stage: 1, saju: saju, nickname: nickname)
-        async let s2 = try? await APIClient.shared.fetchSajuReading(stage: 2, saju: saju, nickname: nickname)
-        let (r1, r2) = await (s1, s2)
-        if let r1 { stage1Text = r1 }
-        if let r2 { stage2Text = r2 }
+        .task { await vm.loadReadings(saju: saju, nickname: nickname) }
     }
 
     private var headerSection: some View {
@@ -118,7 +109,7 @@ struct SajuResultView: View {
                     Text("일간 (나의 본성)")
                         .font(.pretendard(11, .semibold))
                         .foregroundStyle(Color(hex: 0x7E6228))
-                    Text(.init(stage1Text ?? "분석 중..."))
+                    Text(.init(vm.stage1Text ?? "분석 중..."))
                         .font(.serifKR(15, .medium))
                         .foregroundStyle(.ink1)
                         .lineSpacing(3)
@@ -157,7 +148,7 @@ struct SajuResultView: View {
                 Text("성향 한 줄")
                     .font(.pretendard(15, .semibold))
                     .foregroundStyle(.ink1)
-                Text(.init(stage2Text ?? "분석 중..."))
+                Text(.init(vm.stage2Text ?? "분석 중..."))
                     .font(.pretendard(14))
                     .foregroundStyle(.ink2)
                     .lineSpacing(5)
