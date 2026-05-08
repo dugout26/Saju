@@ -35,7 +35,7 @@ actor APIClient {
             day_pillar_of_date: dayPillarOfDate,
             for_date: dateStr
         ))
-        let (data, _) = try await session.data(for: request)
+        let (data, _) = try await sendWithRetry(request)
         return try JSONDecoder().decode(DailyFortuneDTO.self, from: data)
     }
 
@@ -80,7 +80,7 @@ actor APIClient {
         #endif
         var request = try await makeRequest(endpoint: .sajuReading)
         request.httpBody = try JSONEncoder().encode(["stage": stage])
-        let (data, _) = try await session.data(for: request)
+        let (data, _) = try await sendWithRetry(request)
         return try JSONDecoder().decode(SajuReadingDTO.self, from: data).content
     }
 
@@ -102,10 +102,43 @@ actor APIClient {
     func registerPushToken(_ token: String, userId: String) async throws {
         var request = try await makeRequest(endpoint: .registerPushToken)
         request.httpBody = try JSONEncoder().encode(["token": token, "userId": userId])
-        _ = try await session.data(for: request)
+        _ = try await sendWithRetry(request)
     }
 
     // MARK: - Helpers
+
+    /// 5xx + transient network error에 대해 exponential backoff retry (3회 시도, 0.5s/1s).
+    /// 4xx (client error)는 retry 안 함 — 즉시 throw.
+    /// SSE streaming (chatStream)은 적용 X — partial response 재시도 위험.
+    private func sendWithRetry(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        let maxAttempts = 3
+        var lastError: Error = URLError(.unknown)
+        for attempt in 0..<maxAttempts {
+            do {
+                let (data, response) = try await session.data(for: request)
+                guard let http = response as? HTTPURLResponse else {
+                    throw URLError(.badServerResponse)
+                }
+                // 2xx/3xx/4xx는 retry 없이 반환 (호출자가 status 처리)
+                if http.statusCode < 500 {
+                    return (data, http)
+                }
+                // 5xx: retry
+                lastError = NSError(
+                    domain: "APIClient",
+                    code: http.statusCode,
+                    userInfo: [NSLocalizedDescriptionKey: "Server error \(http.statusCode)"]
+                )
+            } catch {
+                lastError = error
+            }
+            if attempt < maxAttempts - 1 {
+                let delayNs = UInt64(pow(2.0, Double(attempt)) * 500_000_000)
+                try? await Task.sleep(nanoseconds: delayNs)
+            }
+        }
+        throw lastError
+    }
 
     /// Supabase Edge Function 표준 헤더 (apikey + Authorization).
     /// 로그인 상태면 user JWT, 아니면 anon key.
