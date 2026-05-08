@@ -267,6 +267,15 @@ if AppConfig.isFeatureEnabled(.newWidget) {
 
 원천: Supabase `app_config` 테이블 + 로컬 캐시. 출시 후 원격으로 점진 enable.
 
+**Flag Debt 방지 — 모든 flag는 만료 계획을 가져야 함** (Martin Fowler, trunk-based 핵심).
+flag 추가 시 아래 표에 등록, 전체 롤아웃 후 즉시 제거.
+
+| Flag | 도입 PR | 활성화 조건 | 제거 목표 버전 | Owner |
+|---|---|---|---|---|
+| (예시) `.newWidget` | #99 | TestFlight 베타 검증 후 | v1.3 | @owner |
+
+flag enum 자체에도 `// 제거 예정: v1.3` 주석 강제.
+
 ### App Store 배포 흐름
 
 1. master HEAD 안정 확인 (CI 그린 + 실기기 sanity)
