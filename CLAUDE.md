@@ -184,6 +184,121 @@ xcodebuild test -project Unse.xcodeproj -scheme Unse \
 
 ---
 
+## 6.5 Git 워크플로 — Trunk-Based + Release Branches (2026 모바일 표준)
+
+> 모든 코드/문서 변경은 아래 흐름을 따른다. master(trunk) direct push 금지.
+> 채택 근거: 2026 elite teams (Google/Amazon/Netflix, growing mobile teams) 기본.
+> 풀 Git Flow의 `develop` 브랜치는 "main이 항상 deployable" 원칙과 충돌해 제외.
+
+### 브랜치 정책
+
+| 브랜치 | 역할 | 수명 | 비고 |
+|---|---|---|---|
+| `master` | **trunk** — 항상 release-ready, App Store 빌드 base | 영구 | direct push 금지. 보호됨 |
+| `feat/<kebab>` | 신규 기능 | **1일 이내** (가능하면) | 미완성은 feature flag로 hide 후 머지 |
+| `fix/<kebab>` | 버그 / 회귀 수정 | 단명 | 예: `fix/chat-stream-leak` |
+| `chore/<kebab>` | 빌드·CI·린트·deps | 단명 | 예: `chore/swift-6-migration` |
+| `docs/<kebab>` | README, CLAUDE.md, 가이드 | 단명 | 예: `docs/gitflow-policy` |
+| `refactor/<kebab>` | 동작 무변경 코드 정리 | 단명 | audit 후속 PR 등 |
+| `release/v<x.y.z>` | **App Store 제출 freeze**. master에서 cut, 안정화 fix만 적용 | 심사 통과까지 | tag 후 master back-merge |
+| `hotfix/v<x.y.z>` | production 긴급 수정 | 매우 단명 | master 직접 분기 → master + 활성 release 양쪽 머지 |
+
+브랜치명 = `<type>/<kebab-case-slug>`. 슬러그 50자 이내, 영문 소문자.
+
+### 핵심 원칙 (2026 trunk-based)
+
+1. **master는 절대 깨지지 않는다** — 매 commit이 release-ready
+2. **PR은 작고 짧게** — 큰 작업은 feature flag로 점진 머지
+3. **release branch는 freeze 용** — 새 기능 추가 금지, 안정화 fix만
+4. **hotfix는 양방향 머지** — master + 모든 활성 release 브랜치에
+
+### Commit 규약 — Conventional Commits
+
+```
+<type>(<scope?>): <한국어 요약 한 줄>
+
+<본문 — why 중심, 줄당 100자 이내>
+
+Co-Authored-By: ...
+```
+
+`type`: `feat` / `fix` / `refactor` / `chore` / `docs` / `test` / `style` / `perf` / `build` / `ci`
+
+scope는 선택 (예: `feat(chat): streaming 재시도 추가`). round 후속 fix는 `fix(round-N.M): ...` 패턴.
+
+### PR 규약
+
+- **1 PR = 1 논리 변경**. 여러 블로커 묶어 올리지 말 것.
+- PR 제목 = commit summary와 일치 (squash 시 자동 사용)
+- PR description: "왜" 중심 + 검증 방법 (build / lint / 실기기 시나리오)
+- CodeRabbit auto-review 대기 후 P1/P2 응답
+- **머지 전략 = squash + delete branch** (`gh pr merge <n> --squash --delete-branch`)
+- 머지 후 로컬 브랜치 삭제 (`git branch -D` + `git fetch --prune`)
+
+### Issue 규약 (심각도 큰 항목 고정화)
+
+| Label | 사용 시점 |
+|---|---|
+| `blocker` | App Store 제출 거부 / production 데이터 손실 위험 |
+| `security` | 인증·결제·secrets·PII 관련 |
+| `monitoring` | crash·perf·analytics·alerting |
+| `compliance` | privacy manifest, ATT, 약관, 법적 |
+| `enhancement` | 신규 기능 / 개선 |
+| `bug` | 재현 가능 결함 |
+| `tech-debt` | refactor 대상 (audit 결과 등) |
+
+CodeRabbit 코멘트로 발견된 P1/P2가 **다음 PR로 이월되거나 별도 작업으로 분리되어야 하면** Issue로 등록 (`@coderabbitai create issue` 또는 `gh issue create`). PR 코멘트만으로는 PR 머지 후 backlog가 휘발되므로.
+
+### 브랜치 보호 / Required Checks
+
+- `master`: direct push 금지 (정책상 + 가능하면 GitHub branch protection rule 적용)
+- PR 머지 전 통과 필수: `iOS build · lint · test` (CI), CodeRabbit "P1/P2 미수정 없음" 명시 답변
+
+### Feature Flag 정책 (점진 머지 핵심)
+
+미완성 기능을 master에 머지할 때는 **꺼진 상태**로 들어가야 함. 패턴:
+
+```swift
+// Core/Storage/AppConfig.swift 또는 SwiftData 기반 설정
+if AppConfig.isFeatureEnabled(.newWidget) {
+    NewWidgetView()
+}
+```
+
+원천: Supabase `app_config` 테이블 + 로컬 캐시. 출시 후 원격으로 점진 enable.
+
+**Flag Debt 방지 — 모든 flag는 만료 계획을 가져야 함** (Martin Fowler, trunk-based 핵심).
+flag 추가 시 아래 표에 등록, 전체 롤아웃 후 즉시 제거.
+
+| Flag | 도입 PR | 활성화 조건 | 제거 목표 버전 | Owner |
+|---|---|---|---|---|
+| (예시) `.newWidget` | #99 | TestFlight 베타 검증 후 | v1.3 | @owner |
+
+flag enum 자체에도 `// 제거 예정: v1.3` 주석 강제.
+
+### App Store 배포 흐름
+
+1. master HEAD 안정 확인 (CI 그린 + 실기기 sanity)
+2. master에서 `release/v<x.y.z>` 분기
+3. version bump commit (project.yml `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION`)
+4. git tag `v<x.y.z>` + push
+5. archive → TestFlight 업로드 (fastlane 권장, 수동도 OK)
+6. 베타 검증 — 발견된 버그는 release 브랜치에 fix 머지 (cherry-pick from master 또는 직접)
+7. App Store 심사 제출
+8. 심사 통과 → release 브랜치 master back-merge (release 동안 적용된 fix가 master에 반영되도록)
+9. release 브랜치 삭제 (tag만 남김)
+
+**release 동안 master 작업은 계속됨** (다음 버전 feature). 핵심: release 브랜치가 freeze 역할.
+
+### Hotfix 흐름
+
+1. master에서 `hotfix/v<x.y.z>` 분기 (이전 release tag 기준 버전 bump)
+2. fix commit + tag
+3. archive → TestFlight expedited review 요청 가능
+4. 머지: hotfix → master + 모든 활성 release 브랜치 (있다면)
+
+---
+
 ## 7. 폴더 구조 (확정)
 
 ```
