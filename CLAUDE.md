@@ -184,6 +184,78 @@ xcodebuild test -project Unse.xcodeproj -scheme Unse \
 
 ---
 
+## 6.5 Git 워크플로 (모든 변경에 강제 적용)
+
+> 모든 코드/문서 변경은 아래 흐름을 따른다. 직접 master push 금지 (긴급 hotfix 외).
+
+### 브랜치 정책
+
+| 브랜치 | 역할 | 수명 | 비고 |
+|---|---|---|---|
+| `master` | production. App Store 빌드 base | 영구 | direct push 금지. 머지만 |
+| `feat/<kebab>` | 신규 기능 | 단명 (PR 머지 후 삭제) | 예: `feat/widget-pinned-saju` |
+| `fix/<kebab>` | 버그 / 회귀 수정 | 단명 | 예: `fix/chat-stream-leak` |
+| `chore/<kebab>` | 빌드·CI·린트·deps | 단명 | 예: `chore/swift-6-migration` |
+| `docs/<kebab>` | README, CLAUDE.md, 가이드만 변경 | 단명 | 예: `docs/gitflow-policy` |
+| `refactor/<kebab>` | 동작 무변경 코드 정리 | 단명 | audit 후속 PR 등 |
+| `release/v<x.y.z>` | App Store 제출용 freeze (선택) | 짧게 | tag 후 머지 |
+| `hotfix/<kebab>` | production 긴급 수정 | 매우 단명 | master 직접 분기 |
+
+브랜치명 = `<type>/<kebab-case-slug>`. 슬러그는 50자 이내, 영문 소문자.
+
+### Commit 규약 — Conventional Commits
+
+```
+<type>(<scope?>): <한국어 요약 한 줄>
+
+<본문 — why 중심, 줄당 100자 이내>
+
+Co-Authored-By: ...
+```
+
+`type`: `feat` / `fix` / `refactor` / `chore` / `docs` / `test` / `style` / `perf` / `build` / `ci`
+
+scope는 선택 (예: `feat(chat): streaming 재시도 추가`). round 후속 fix는 `fix(round-N.M): ...` 패턴 (audit PR에서 정착).
+
+### PR 규약
+
+- **1 PR = 1 논리 변경**. 여러 블로커를 묶어 올리지 말 것.
+- PR 제목 = commit summary와 일치 (squash 시 자동 사용)
+- PR description: "왜" 중심 + 검증 방법 (build / lint / 실기기 시나리오)
+- CodeRabbit auto-review 대기 후 P1/P2 응답
+- **머지 전략 = squash + delete branch** (`gh pr merge <n> --squash --delete-branch`)
+- 머지 후 로컬 브랜치 삭제 (`git branch -D` + `git fetch --prune`)
+
+### Issue 규약 (심각도 큰 항목 고정화)
+
+| Label | 사용 시점 |
+|---|---|
+| `blocker` | App Store 제출 거부 / production 데이터 손실 위험 |
+| `security` | 인증·결제·secrets·PII 관련 |
+| `monitoring` | crash·perf·analytics·alerting |
+| `compliance` | privacy manifest, ATT, 약관, 법적 |
+| `enhancement` | 신규 기능 / 개선 |
+| `bug` | 재현 가능 결함 |
+| `tech-debt` | refactor 대상 (audit 결과 등) |
+
+CodeRabbit 코멘트로 발견된 P1/P2가 **다음 PR로 이월되거나 별도 작업으로 분리되어야 하면** Issue로 등록 (`@coderabbitai create issue` 또는 `gh issue create`). PR 코멘트만으로는 PR 머지 후 backlog가 휘발되므로.
+
+### 브랜치 보호 / Required Checks
+
+- `master`: direct push 금지 (관리자 우회 가능, 정책상 금지)
+- PR 머지 전 통과 필수: `iOS build · lint · test` (CI), CodeRabbit "P1/P2 미수정 없음" 명시 답변
+
+### 배포 흐름 (App Store)
+
+1. master에서 `release/v<x.y.z>` 분기
+2. version bump commit (project.yml `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION`)
+3. git tag `v<x.y.z>` + push
+4. fastlane 또는 수동 archive → TestFlight 업로드
+5. 베타 검증 후 App Store 심사 제출
+6. 심사 통과 후 release 브랜치 → master 머지 + tag
+
+---
+
 ## 7. 폴더 구조 (확정)
 
 ```
