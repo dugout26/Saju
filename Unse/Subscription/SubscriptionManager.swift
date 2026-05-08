@@ -46,8 +46,8 @@ final class SubscriptionManager {
         case .success(let verification):
             let txn = try checkVerified(verification)
             await txn.finish()
+            await verifyOnServer(verification: verification)
             await refreshStatus()
-            await syncToSupabase(transaction: txn, product: product)
         case .userCancelled, .pending:
             break
         @unknown default:
@@ -56,50 +56,40 @@ final class SubscriptionManager {
     }
 
     private func handleTransactionUpdate(_ result: VerificationResult<Transaction>) async {
-        guard let txn = try? checkVerified(result) else { return }
-        await txn.finish()
-        await refreshStatus()
-        if let product = products.first(where: { $0.id == txn.productID }) {
-            await syncToSupabase(transaction: txn, product: product)
+        guard (try? checkVerified(result)) != nil else { return }
+        if case .verified(let txn) = result {
+            await txn.finish()
         }
+        await verifyOnServer(verification: result)
+        await refreshStatus()
     }
 
-    private func syncToSupabase(transaction: Transaction, product: Product) async {
-        guard let userId = try? await SupabaseManager.shared.auth.session.user.id else { return }
+    /// 서버 측 trust source. 클라이언트 단독 검증을 신뢰하지 않고 verify-receipt
+    /// Edge Function이 JWS payload (bundleId, productId, expires) 재검증 + service_role로
+    /// users.subscription_status 갱신. 클라이언트는 서버 응답으로 status 인식.
+    private func verifyOnServer(verification: VerificationResult<Transaction>) async {
+        let signedJWS = verification.jwsRepresentation
 
-        struct UserUpdate: Encodable {
-            let subscription_status: String
-            let subscription_expires_at: Date?
-        }
-        _ = try? await SupabaseManager.shared
-            .from("users")
-            .update(UserUpdate(
-                subscription_status: status == .premium ? "premium" : "free",
-                subscription_expires_at: transaction.expirationDate
-            ))
-            .eq("id", value: userId)
-            .execute()
+        guard let session = try? await SupabaseManager.shared.auth.session else { return }
 
-        struct Sub: Encodable {
-            let user_id: UUID
-            let plan: String
-            let provider: String
-            let provider_subscription_id: String
-            let started_at: Date
-            let current_period_end: Date
+        var request = URLRequest(url: Endpoint.verifyReceipt.url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
+
+        struct Body: Encodable { let signed_transaction: String }
+        request.httpBody = try? JSONEncoder().encode(Body(signed_transaction: signedJWS))
+
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                print("[SubscriptionManager] verify-receipt failed: status \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+                return
+            }
+            // 서버가 users.subscription_status update 완료. refreshStatus가 다음 단계에서 entitlement 재확인.
+        } catch {
+            print("[SubscriptionManager] verify-receipt error: \(error)")
         }
-        let plan = product.id.contains("monthly") ? "monthly" : "yearly"
-        _ = try? await SupabaseManager.shared
-            .from("subscriptions")
-            .upsert(Sub(
-                user_id: userId,
-                plan: plan,
-                provider: "apple_iap",
-                provider_subscription_id: String(transaction.id),
-                started_at: transaction.purchaseDate,
-                current_period_end: transaction.expirationDate ?? transaction.purchaseDate
-            ), onConflict: "provider,provider_subscription_id")
-            .execute()
     }
 
     // MARK: - Restore
