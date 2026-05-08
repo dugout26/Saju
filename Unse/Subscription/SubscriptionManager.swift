@@ -20,6 +20,8 @@ final class SubscriptionManager {
     var products: [Product] = []
     var status: SubscriptionStatus = .free
     var isLoading = false
+    /// 서버 verify 실패 — UI에서 alert 표시 + retry 유도.
+    var verifyError: String?
 
     private let productIds = ["unse.monthly", "unse.yearly"]
     private var updateListenerTask: Task<Void, Never>?
@@ -44,10 +46,12 @@ final class SubscriptionManager {
         let result = try await product.purchase()
         switch result {
         case .success(let verification):
-            let txn = try checkVerified(verification)
-            await txn.finish()
+            // 서버 verify 성공 후에만 txn.finish — 서버 fail 시 다음 앱 실행에서 재시도 가능.
+            let verified = await verifyOnServer(verification: verification)
+            if verified, case .verified(let txn) = verification {
+                await txn.finish()
+            }
             await refreshStatus()
-            await syncToSupabase(transaction: txn, product: product)
         case .userCancelled, .pending:
             break
         @unknown default:
@@ -56,51 +60,64 @@ final class SubscriptionManager {
     }
 
     private func handleTransactionUpdate(_ result: VerificationResult<Transaction>) async {
-        guard let txn = try? checkVerified(result) else { return }
-        await txn.finish()
+        guard (try? checkVerified(result)) != nil else { return }
+        let verified = await verifyOnServer(verification: result)
+        if verified, case .verified(let txn) = result {
+            await txn.finish()
+        }
         await refreshStatus()
-        if let product = products.first(where: { $0.id == txn.productID }) {
-            await syncToSupabase(transaction: txn, product: product)
+    }
+
+    /// 서버 측 trust source. verify-receipt Edge Function이 App Store Server API로
+    /// trusted transaction fetch → bundleId/productId/expires 검증 + service_role로
+    /// users.subscription_status + subscriptions 갱신.
+    /// - returns: 서버 검증 + DB 갱신 성공 여부. true면 호출자가 txn.finish 안전.
+    @discardableResult
+    private func verifyOnServer(verification: VerificationResult<Transaction>) async -> Bool {
+        let signedJWS = verification.jwsRepresentation
+
+        guard let session = try? await SupabaseManager.shared.auth.session else {
+            verifyError = "구독 동기화 실패 — 로그인 세션을 확인할 수 없어요."
+            return false
+        }
+
+        var request = URLRequest(url: Endpoint.verifyReceipt.url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
+
+        struct Body: Encodable { let signed_transaction: String }
+        request.httpBody = try? JSONEncoder().encode(Body(signed_transaction: signedJWS))
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                verifyError = "구독 동기화 실패 — 네트워크 응답이 올바르지 않아요."
+                return false
+            }
+            guard http.statusCode == 200 else {
+                let serverMsg = (try? JSONDecoder().decode(ErrorBody.self, from: data))?.error
+                verifyError = serverMsg ?? "구독 동기화 실패 (status \(http.statusCode))."
+                return false
+            }
+            // 서버 응답으로 local status 즉시 갱신 (refreshStatus는 entitlement도 다시 확인).
+            if let resp = try? JSONDecoder().decode(VerifyResponse.self, from: data) {
+                status = resp.is_premium ? .premium : .free
+            }
+            verifyError = nil
+            return true
+        } catch {
+            verifyError = "구독 동기화 실패 — 네트워크 오류. 잠시 후 다시 시도해주세요."
+            return false
         }
     }
 
-    private func syncToSupabase(transaction: Transaction, product: Product) async {
-        guard let userId = try? await SupabaseManager.shared.auth.session.user.id else { return }
-
-        struct UserUpdate: Encodable {
-            let subscription_status: String
-            let subscription_expires_at: Date?
-        }
-        _ = try? await SupabaseManager.shared
-            .from("users")
-            .update(UserUpdate(
-                subscription_status: status == .premium ? "premium" : "free",
-                subscription_expires_at: transaction.expirationDate
-            ))
-            .eq("id", value: userId)
-            .execute()
-
-        struct Sub: Encodable {
-            let user_id: UUID
-            let plan: String
-            let provider: String
-            let provider_subscription_id: String
-            let started_at: Date
-            let current_period_end: Date
-        }
-        let plan = product.id.contains("monthly") ? "monthly" : "yearly"
-        _ = try? await SupabaseManager.shared
-            .from("subscriptions")
-            .upsert(Sub(
-                user_id: userId,
-                plan: plan,
-                provider: "apple_iap",
-                provider_subscription_id: String(transaction.id),
-                started_at: transaction.purchaseDate,
-                current_period_end: transaction.expirationDate ?? transaction.purchaseDate
-            ), onConflict: "provider,provider_subscription_id")
-            .execute()
+    private struct VerifyResponse: Decodable {
+        let is_premium: Bool
+        let subscription_status: String
+        let expires_at: Int64?
     }
+    private struct ErrorBody: Decodable { let error: String }
 
     // MARK: - Restore
 
