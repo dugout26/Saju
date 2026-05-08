@@ -6,33 +6,29 @@ import SwiftData
 struct DailyFortuneView: View {
     var user: UserProfile?
 
-    @Environment(\.modelContext) private var modelContext
     @Environment(SubscriptionManager.self) private var sub
+    @State private var vm = DailyFortuneViewModel()
     @State private var showChat = false
     @State private var showTimeline = false
     @State private var showShare = false
     @State private var showPaywall = false
-    @State private var snapshot: DailyFortuneSnapshot?
-    @State private var tomorrowSnapshot: DailyFortuneSnapshot?
-    @State private var isLoading = true
-    @State private var loadError: String?
-    @State private var rewardedLoader = RewardedAdLoader()
 
     private var nickname: String { user?.nickname ?? "사용자" }
+    private var hasSajuProfile: Bool { user?.sajuProfile != nil }
 
     var body: some View {
         NavigationStack {
             Group {
-                if let snap = snapshot {
+                if let snap = vm.snapshot {
                     content(snap: snap)
-                } else if isLoading {
+                } else if vm.isLoading {
                     AIAnalysisLoadingView()
                 } else {
                     VStack(spacing: 10) {
                         Text("운세를 불러오지 못했어요")
                             .font(.pretendard(14))
                             .foregroundStyle(.ink2)
-                        if let loadError {
+                        if let loadError = vm.loadError {
                             Text(loadError)
                                 .font(.pretendard(11, .medium))
                                 .foregroundStyle(.red.opacity(0.7))
@@ -40,7 +36,7 @@ struct DailyFortuneView: View {
                                 .padding(.horizontal, 24)
                         }
                         Button("다시 시도") {
-                            Task { await loadFortune() }
+                            Task { await vm.loadFortune(hasSajuProfile: hasSajuProfile) }
                         }
                         .font(.pretendard(13, .semibold))
                         .foregroundStyle(.lavenderDeep)
@@ -50,33 +46,7 @@ struct DailyFortuneView: View {
                     .background(Color.bg.ignoresSafeArea())
                 }
             }
-            .task { await loadFortune() }
-        }
-    }
-
-    private func loadFortune() async {
-        guard user?.sajuProfile != nil else { isLoading = false; return }
-        isLoading = true
-        loadError = nil
-        let dayPillar = DailyFortuneEngine.dayPillarString()
-        do {
-            let dto = try await APIClient.shared.fetchDailyFortune(dayPillarOfDate: dayPillar)
-            snapshot = DailyFortuneSnapshot(dto: dto)
-        } catch {
-            loadError = error.localizedDescription
-        }
-        isLoading = false
-    }
-
-    private func loadTomorrow() async {
-        guard tomorrowSnapshot == nil else { return }
-        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
-        let dayPillar = DailyFortuneEngine.dayPillarString(for: tomorrow)
-        if let dto = try? await APIClient.shared.fetchDailyFortune(
-            dayPillarOfDate: dayPillar,
-            forDate: tomorrow
-        ) {
-            tomorrowSnapshot = DailyFortuneSnapshot(dto: dto)
+            .task { await vm.loadFortune(hasSajuProfile: hasSajuProfile) }
         }
     }
 
@@ -114,7 +84,7 @@ struct DailyFortuneView: View {
         .navigationDestination(isPresented: $showTimeline) { TimelineView(user: user) }
         .sheet(isPresented: $showShare) { ShareCardView(theme: theme, nickname: nickname) }
         .sheet(isPresented: $showPaywall) { PaywallView().environment(sub) }
-        .sheet(item: $tomorrowSnapshot) { snap in
+        .sheet(item: Bindable(vm).tomorrowSnapshot) { snap in
             TomorrowFortuneSheet(snapshot: snap)
         }
     }
@@ -291,21 +261,7 @@ struct DailyFortuneView: View {
             HStack(spacing: 8) {
                 OutlineButton(title: "주간 흐름") { showTimeline = true }
                 OutlineButton(title: "내일 미리보기") {
-                    if sub.isPremium {
-                        Task { await loadTomorrow() }
-                    } else {
-                        // 광고 시청 후 보상으로 내일 운세. load 실패 시에도 silent grant.
-                        var granted = false
-                        rewardedLoader.loadAndShow(unitId: AdsManager.rewardedUnitId) {
-                            granted = true
-                            Task { await loadTomorrow() }
-                        }
-                        // 광고 자체가 안 뜨면 (load fail) 1.5초 후 silent grant
-                        Task {
-                            try? await Task.sleep(for: .seconds(1.5))
-                            if !granted { await loadTomorrow() }
-                        }
-                    }
+                    vm.loadTomorrowGated(isPremium: sub.isPremium)
                 }
             }
         }
