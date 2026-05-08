@@ -10,11 +10,17 @@ final class SajuResultViewModel {
     var stage1Text: String?
     var stage2Text: String?
 
+    private let client: any APIClientProtocol
+
+    init(client: any APIClientProtocol = APIClient.shared) {
+        self.client = client
+    }
+
     /// stage 1 + 2 풀이 병렬 로딩. 실패는 silent — UI에서 "분석 중..." 그대로 표시.
     /// 첫 진입 시 OnboardingService.prefetchReadings로 캐시되어 있으면 즉시 hit.
     func loadReadings(saju: SajuComputed, nickname: String) async {
-        async let s1 = try? await APIClient.shared.fetchSajuReading(stage: 1, saju: saju, nickname: nickname)
-        async let s2 = try? await APIClient.shared.fetchSajuReading(stage: 2, saju: saju, nickname: nickname)
+        async let s1 = try? await client.fetchSajuReading(stage: 1, saju: saju, nickname: nickname)
+        async let s2 = try? await client.fetchSajuReading(stage: 2, saju: saju, nickname: nickname)
         let (r1, r2) = await (s1, s2)
         if let r1 { stage1Text = r1 }
         if let r2 { stage2Text = r2 }

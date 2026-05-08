@@ -16,9 +16,11 @@ final class ChatViewModel {
         "저랑 잘 맞는 사람의 일간은?"
     ]
 
+    private let client: any APIClientProtocol
     private let rewardedLoader = RewardedAdLoader()
 
-    init(nickname: String) {
+    init(nickname: String, client: any APIClientProtocol = APIClient.shared) {
+        self.client = client
         messages = [
             ChatBubble(role: .assistant,
                        text: "안녕하세요 \(nickname)님. 사주에 대해 궁금한 점을 자유롭게 물어보세요.")
@@ -70,7 +72,7 @@ final class ChatViewModel {
             let storageMessages = messages.dropLast().map { msg in
                 ["role": msg.role == .user ? "user" : "assistant", "content": msg.text]
             }
-            for try await delta in await APIClient.shared.chatStream(messages: Array(storageMessages)) {
+            for try await delta in await client.chatStream(messages: Array(storageMessages)) {
                 assistantBubble.text += delta
                 messages[idx] = assistantBubble
             }
