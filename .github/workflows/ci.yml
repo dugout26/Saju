@@ -64,7 +64,13 @@ jobs:
             -skipPackagePluginValidation \
             build
 
-      # Test step 비활성 — UnseTests가 host app(Unse)을 launch하지만
-      # GoogleService-Info.plist (gitignored, CI 미존재) 부재로 FirebaseApp.configure SIGABRT.
-      # 도메인 tests (Manse, DailyFortuneEngine)는 로컬 검증으로 유지.
-      # Phase 2 tech debt: host-less test target으로 분리하거나 Firebase init guard 추가.
+      - name: Test
+        # Phase 2-1: AppDelegate에 isRunningTests 가드 추가로 host app launch 시
+        # FirebaseApp.configure skip → CI에서도 안전. host-less target은 Firebase 모듈
+        # link 의존성 때문에 작동 안 했음 (시도 후 회귀).
+        run: |
+          xcodebuild test \
+            -project Unse.xcodeproj \
+            -scheme Unse \
+            -destination "platform=iOS Simulator,name=${IOS_SIMULATOR_DEVICE},OS=${IOS_SIMULATOR_OS}" \
+            -skipPackagePluginValidation
