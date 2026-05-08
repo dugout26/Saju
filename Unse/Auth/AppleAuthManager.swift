@@ -82,10 +82,14 @@ extension AppleAuthManager: ASAuthorizationControllerDelegate {
 // MARK: - ASAuthorizationControllerPresentationContextProviding
 
 extension AppleAuthManager: ASAuthorizationControllerPresentationContextProviding {
+    // protocol nonisolated 요구이지만 UIApplication.shared는 @MainActor.
+    // ASAuthorizationController가 main thread에서만 호출하므로 assumeIsolated 안전.
     nonisolated func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first?.windows.first { $0.isKeyWindow } ?? ASPresentationAnchor()
+        MainActor.assumeIsolated {
+            UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .first?.windows.first { $0.isKeyWindow } ?? ASPresentationAnchor()
+        }
     }
 }
 

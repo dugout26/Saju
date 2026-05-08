@@ -1,4 +1,4 @@
-import GoogleMobileAds
+@preconcurrency import GoogleMobileAds
 import SwiftUI
 import UIKit
 

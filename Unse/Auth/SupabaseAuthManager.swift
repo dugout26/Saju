@@ -1,5 +1,5 @@
 import Foundation
-import Supabase
+@preconcurrency import Supabase
 
 /// Apple/Kakao 로그인을 Supabase Auth에 연결.
 /// 로그인 성공 시 public.users row를 upsert (auth.users.id = users.id).

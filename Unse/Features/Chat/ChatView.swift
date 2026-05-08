@@ -203,8 +203,12 @@ struct TypingIndicator: View {
         .background(Color.surface)
         .clipShape(RoundedCorner(radius: 20, corners: [.topLeft, .topRight, .bottomRight]))
         .onAppear {
+            // Timer closure는 Sendable이라 main actor isolated phase 직접 변경 불가.
+            // Task { @MainActor in } 으로 hop.
             Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { _ in
-                phase = (phase + 1) % 3
+                Task { @MainActor in
+                    phase = (phase + 1) % 3
+                }
             }
         }
     }

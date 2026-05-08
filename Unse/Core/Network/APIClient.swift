@@ -1,5 +1,5 @@
 import Foundation
-import Supabase
+@preconcurrency import Supabase
 
 // MARK: - API Client
 // All Claude/Anthropic calls go through the server-side Edge Function.

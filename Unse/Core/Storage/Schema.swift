@@ -7,7 +7,11 @@ import SwiftData
 // 새 @Model 추가 시 SchemaV1.models에 반드시 등록.
 
 enum SchemaV1: VersionedSchema {
-    static var versionIdentifier = Schema.Version(1, 0, 0)
+    // computed property — Schema.Version 타입이 Swift 6.0 컴파일러(macos-15 runner Xcode 16.x)
+    // 에서 nonisolated stored static let의 Sendable 검사를 통과하지 못하는 케이스 회피.
+    // 매 호출 새 인스턴스 생성 (struct, ~0 비용), 저장 state 0 → Sendable 검사 자체 X.
+    // Xcode 26 (Swift 6.x)에서는 static let도 통과하지만 환경 일치 위해 computed로 통일.
+    static var versionIdentifier: Schema.Version { Schema.Version(1, 0, 0) }
 
     static var models: [any PersistentModel.Type] {
         [

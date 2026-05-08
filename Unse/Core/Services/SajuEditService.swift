@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+@preconcurrency import Supabase
 
 // MARK: - SajuEditService
 //
@@ -107,14 +108,15 @@ enum SajuEditService {
     }
 
     /// recompute 시 saju_readings 로컬 캐시 삭제. 서버 캐시는 commitRecompute가 처리.
-    /// SwiftData #Predicate는 String.starts(with:) 변환 미지원 — hasPrefix만 안전.
+    /// SwiftData #Predicate는 String.hasPrefix / starts(with:) 변환 미지원 →
+    /// 모든 SajuReading fetch 후 Swift-side filter (단일 사용자 + stage 5개 max라 비용 무시).
     private static func invalidateReadings(userId: UUID, modelContext: ModelContext) {
         let prefix = userId.uuidString
-        let descriptor = FetchDescriptor<SajuReading>(
-            predicate: #Predicate<SajuReading> { $0.key.hasPrefix(prefix) }
-        )
-        if let stale = try? modelContext.fetch(descriptor) {
-            for row in stale { modelContext.delete(row) }
+        let descriptor = FetchDescriptor<SajuReading>()
+        if let all = try? modelContext.fetch(descriptor) {
+            for row in all where row.key.hasPrefix(prefix) {
+                modelContext.delete(row)
+            }
         }
     }
 }

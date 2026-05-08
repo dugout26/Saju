@@ -1,6 +1,6 @@
-import UserNotifications
+@preconcurrency import UserNotifications
 import UIKit
-import Supabase
+@preconcurrency import Supabase
 import FirebaseCore
 import FirebaseMessaging
 
