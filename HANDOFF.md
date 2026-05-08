@@ -13,7 +13,7 @@
 | [#20](https://github.com/dugout26/Saju/pull/20) | 다크모드 + Dynamic Type 지원 (Phase 3-2) | ✅ merged | `Color(light:dark:)` 동적 컬러, Typography에 `relativeTo: .body` |
 | [#21](https://github.com/dugout26/Saju/pull/21) | APIClientProtocol + ViewModel DI + 6 async tests (Phase 3-3) | ✅ merged | actor APIClient → protocol DI 패턴. MockAPIClient + DailyFortune/SajuResult 테스트 (총 36건) |
 | [#22](https://github.com/dugout26/Saju/pull/22) | fastlane TestFlight + App Store lanes (Phase 3-4) | ✅ merged | beta/release/bump 3-lane 자동화. CodeRabbit fix: `release` lane build_app, `bump` 직접 액션 호출, private_lane 추출 |
-| [#23](https://github.com/dugout26/Saju/pull/23) | ASN v2 webhook (Phase 3-5) | ⏳ CI 진행 중 → 집에서 수동 머지 | Apple Server Notifications V2 webhook. trusted-state-driven action (notificationType 미신뢰), 4xx/5xx 분리, environment 교차검증, started_at 보존 |
+| [#23](https://github.com/dugout26/Saju/pull/23) | ASN v2 webhook (Phase 3-5) | ✅ merged | Apple Server Notifications V2 webhook. trusted-state-driven action (notificationType 미신뢰), 4xx/5xx 분리, environment 교차검증, started_at 보존 |
 
 CodeRabbit 평가: 전 PR "구현 승인 가능합니다 🎉" / 잔존 known trade-off 1건만 — webhook spam (x5c chain 미검증 — 후속 PR 분리).
 
@@ -21,17 +21,14 @@ CodeRabbit 평가: 전 PR "구현 승인 가능합니다 🎉" / 잔존 known tr
 
 ## 2. 집에서 가장 먼저 할 일
 
-### 2-1. PR #23 머지
+### 2-1. master 동기화
 ```bash
-cd ~/Saju  # 또는 집컴 path
-git fetch --prune
-gh pr view 23 --json statusCheckRollup --jq '.statusCheckRollup'
-# CI green 확인되면:
-gh pr merge 23 --squash --delete-branch
-git checkout master && git pull && git branch -D feat/asn-v2-webhook 2>/dev/null
+cd ~/Saju  # 집컴 path
+git checkout master && git pull && git fetch --prune
+xcodegen generate  # project.yml 변경분 반영
 ```
 
-(회사컴에선 auto-merge가 repo 설정상 차단돼 수동 머지 필요. CI는 push 후 ~7분 소요.)
+회사컴 작업분(5/5 PR)이 master에 모두 들어가 있음. 추가 머지 작업 없음.
 
 ### 2-2. 사용자(=직접) 작업 필요 — production 배포 전 필수
 다음은 코드 외 사용자가 직접 해야 하는 작업. 모두 deferred 상태:
