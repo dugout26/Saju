@@ -3,6 +3,7 @@ import SwiftData
 import KakaoSDKCommon
 import KakaoSDKAuth
 import FirebaseCore
+import FirebaseCrashlytics
 
 @main
 struct UnseApp: App {
@@ -66,11 +67,18 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        // Firebase 초기화 (FCM 사용을 위해 가장 먼저)
-        FirebaseApp.configure()
-        // Kakao SDK 초기화 (Info.plist의 KAKAO_APP_KEY 사용)
+        // Firebase 초기화 (FCM + Crashlytics 사용을 위해 가장 먼저).
+        // GoogleService-Info.plist 부재 시(CI/test) configure가 assertion → 가드.
+        if Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil {
+            FirebaseApp.configure()
+            // Crashlytics는 FirebaseApp.configure 후 자동 시작. 명시적 참조로 활성 보장.
+            _ = Crashlytics.crashlytics()
+        }
+        // Kakao SDK 초기화 (Info.plist의 KAKAO_APP_KEY 사용). 빈 키면 skip.
         let kakaoKey = Bundle.main.object(forInfoDictionaryKey: "KAKAO_APP_KEY") as? String ?? ""
-        KakaoSDK.initSDK(appKey: kakaoKey)
+        if !kakaoKey.isEmpty {
+            KakaoSDK.initSDK(appKey: kakaoKey)
+        }
         // AdMob 초기화
         AdsManager.start()
         return true
