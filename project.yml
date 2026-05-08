@@ -54,6 +54,8 @@ targets:
         product: GoogleMobileAds
       - package: Firebase
         product: FirebaseMessaging
+      - package: Firebase
+        product: FirebaseCrashlytics
     preBuildScripts:
       - script: |
           if [[ "$(uname -m)" == arm64 ]]; then
