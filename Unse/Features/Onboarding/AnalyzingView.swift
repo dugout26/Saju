@@ -11,10 +11,8 @@ struct AnalyzingView: View {
     var title: String = "사주를 풀고 있어요"
 
     @Environment(\.modelContext) private var modelContext
-    @State private var step = 0
+    @State private var avm = AnalyzingViewModel()
     @State private var floating = false
-    @State private var computedResult: (saju: SajuComputed, daeWoon: [DaeWoon])?
-    @State private var errorMessage: String?
 
     private let steps = [
         "생년월일을 천간지지로 변환",
@@ -44,15 +42,28 @@ struct AnalyzingView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationBarBackButtonHidden()
-        .alert("저장 중 오류가 발생했어요", isPresented: .constant(errorMessage != nil), actions: {
+        .alert("저장 중 오류가 발생했어요", isPresented: Binding(
+            get: { avm.errorMessage != nil },
+            set: { if !$0 { avm.errorMessage = nil } }
+        )) {
             Button("다시 시도") {
-                errorMessage = nil
+                avm.errorMessage = nil
                 Task { await runAnimation() }
             }
-        }, message: {
-            Text(errorMessage ?? "")
-        })
+        } message: {
+            Text(avm.errorMessage ?? "")
+        }
         .task { await runAnimation() }
+    }
+
+    private func runAnimation() async {
+        await avm.runAnimation(
+            birthVM: vm,
+            stepCount: steps.count,
+            onSave: onSave,
+            onComplete: onComplete,
+            modelContext: modelContext
+        )
     }
 
     private var floatingChars: some View {
@@ -86,8 +97,8 @@ struct AnalyzingView: View {
                         .font(.pretendard(13))
                         .foregroundStyle(.ink2)
                 }
-                .opacity(i <= step ? 1 : 0.25)
-                .animation(.easeInOut(duration: 0.3).delay(Double(i) * 0.05), value: step)
+                .opacity(i <= avm.step ? 1 : 0.25)
+                .animation(.easeInOut(duration: 0.3).delay(Double(i) * 0.05), value: avm.step)
             }
         }
         .frame(maxWidth: 280, alignment: .leading)
@@ -95,13 +106,13 @@ struct AnalyzingView: View {
 
     private func stepDot(index i: Int) -> some View {
         ZStack {
-            if i < step {
+            if i < avm.step {
                 Circle().fill(Color.lavenderDeep)
                     .frame(width: 16, height: 16)
                 Image(systemName: "checkmark")
                     .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(.white)
-            } else if i == step {
+            } else if i == avm.step {
                 Circle().stroke(Color.lavenderDeep, lineWidth: 2)
                     .frame(width: 16, height: 16)
             } else {
@@ -109,58 +120,5 @@ struct AnalyzingView: View {
                     .frame(width: 16, height: 16)
             }
         }
-    }
-
-    private func runAnimation() async {
-        let result = vm.compute()
-        computedResult = result
-
-        // 저장은 animation과 병렬 (사용자는 4.4s 동안 step animation 봄).
-        // 부수 효과는 Service에 위임 — View는 UI만 담당.
-        let saveTask = Task { try await runSave(result: result) }
-
-        // task cancel(view dismiss) 시 sleep이 throw — try?로 nil 받고 step 폭주 방지하기 위해
-        // do/catch return으로 조기 종료. saveTask는 별도 Task라 자동 cancel 전파.
-        for i in steps.indices {
-            do {
-                try await Task.sleep(for: .seconds(1.1))
-            } catch {
-                return
-            }
-            withAnimation { step = i + 1 }
-        }
-
-        do {
-            try await saveTask.value
-        } catch {
-            errorMessage = error.localizedDescription
-            return
-        }
-
-        // 풀이 prefetch (background, 결과 무시 — caching 만 됨)
-        OnboardingService.prefetchReadings(saju: result.saju, nickname: vm.input.nickname)
-
-        // 마지막 pause — cancel 시 onComplete 호출 안 함 (view 이미 dismiss됨)
-        do {
-            try await Task.sleep(for: .seconds(0.5))
-        } catch {
-            return
-        }
-
-        // edit 흐름: onComplete가 있으면 호출. onboarding: RootView @Query가 자동 swap.
-        onComplete?()
-    }
-
-    private func runSave(result: (saju: SajuComputed, daeWoon: [DaeWoon])) async throws {
-        if let onSave {
-            try await onSave(result.saju, result.daeWoon)
-            return
-        }
-        try await OnboardingService.completeSignup(
-            input: vm.input,
-            saju: result.saju,
-            daeWoon: result.daeWoon,
-            modelContext: modelContext
-        )
     }
 }
