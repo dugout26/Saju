@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import SwiftData
+import FirebaseCrashlytics
 
 // 사주 분석 진행 상태 + 저장 orchestration — AnalyzingView UI 밖으로 분리.
 // SwiftUI 의존성 없음 (testable). withAnimation 제거 — View의
@@ -51,6 +52,7 @@ final class AnalyzingViewModel {
         do {
             try await saveTask.value
         } catch {
+            Crashlytics.crashlytics().record(error: error)
             errorMessage = error.localizedDescription
             return
         }
