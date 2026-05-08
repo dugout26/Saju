@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var pushEnabled = false
     @State private var pushTime = Date()
     @State private var pushSaveError: String?
+    @State private var deleteError: String?
 
     private var nickname: String { user?.nickname ?? "사용자" }
 
@@ -50,16 +51,30 @@ struct SettingsView: View {
             } message: {
                 Text("로그아웃하면 시작 화면으로 돌아갑니다.")
             }
-            .alert("로그아웃 실패", isPresented: .constant(logoutError != nil), actions: {
+            .alert("로그아웃 실패", isPresented: Binding(
+                get: { logoutError != nil },
+                set: { if !$0 { logoutError = nil } }
+            )) {
                 Button("확인") { logoutError = nil }
-            }, message: {
+            } message: {
                 Text(logoutError ?? "")
-            })
-            .alert("저장 실패", isPresented: .constant(pushSaveError != nil), actions: {
+            }
+            .alert("저장 실패", isPresented: Binding(
+                get: { pushSaveError != nil },
+                set: { if !$0 { pushSaveError = nil } }
+            )) {
                 Button("확인") { pushSaveError = nil }
-            }, message: {
+            } message: {
                 Text(pushSaveError ?? "")
-            })
+            }
+            .alert("삭제 실패", isPresented: Binding(
+                get: { deleteError != nil },
+                set: { if !$0 { deleteError = nil } }
+            )) {
+                Button("확인") { deleteError = nil }
+            } message: {
+                Text(deleteError ?? "")
+            }
             .onAppear { loadPushSettings() }
         }
     }
@@ -296,7 +311,11 @@ struct SettingsView: View {
 
     private func deleteAccount() {
         guard let user else { return }
-        try? SettingsService.deleteAccount(user: user, modelContext: modelContext)
+        do {
+            try SettingsService.deleteAccount(user: user, modelContext: modelContext)
+        } catch {
+            deleteError = "계정 삭제 실패. 다시 시도해주세요.\n(\(error.localizedDescription))"
+        }
     }
 
     private func logout() {
