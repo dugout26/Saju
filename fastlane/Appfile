@@ -1,0 +1,4 @@
+app_identifier("kr.mound.unse")
+apple_id(ENV["FASTLANE_APPLE_ID"])
+team_id("63HCVR9YH2")
+itc_team_id(ENV["FASTLANE_ITC_TEAM_ID"])

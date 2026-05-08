@@ -28,6 +28,13 @@ GoogleService-Info.plist
 *.p8
 *.p12
 
+# fastlane (Phase 3-4) — auto-generated 산출물 + 사용자 환경별
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+fastlane/README.md
+
 # Supabase CLI 로컬 상태 (개인컴에서만 생성)
 supabase/.env*
 supabase/.temp/
