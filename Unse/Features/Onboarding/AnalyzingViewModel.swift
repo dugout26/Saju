@@ -31,12 +31,14 @@ final class AnalyzingViewModel {
         computedResult = result
 
         // 저장은 animation과 병렬. 부수 효과는 Service에 위임.
+        // unstructured Task — 부모 cancel 자동 전파 안 됨. 의도된 동작:
+        // view dismiss 후에도 저장은 완료 → 데이터 손실 방지.
         let saveTask = Task {
             try await runSave(birthVM: birthVM, result: result, onSave: onSave, modelContext: modelContext)
         }
 
         // task cancel(view dismiss) 시 sleep이 throw — try?로 묵살하면 step이 즉시 폭주.
-        // do/catch return으로 cleanup. saveTask는 별도 Task라 cancel 자동 전파.
+        // do/catch return으로 cleanup. saveTask는 위 주석대로 계속 실행됨.
         for i in 0..<stepCount {
             do {
                 try await Task.sleep(for: stepDelay)
