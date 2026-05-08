@@ -75,8 +75,38 @@ enum SajuEditService {
         try modelContext.save()
     }
 
-    /// recompute 시 saju_readings 로컬 캐시 삭제. 서버 캐시는 AnalyzingView가
-    /// Supabase upsert 시점에 별도 무효화 (또는 서버 함수가 stage 호출 시 새로 생성).
+    /// 재계산된 사주를 Supabase에 동기화 + 서버 캐시 무효화.
+    /// recomputeAndSaveLocally가 로컬 SwiftData 처리 후 AnalyzingView.onSave 경로에서 호출.
+    /// session 조회 실패 시 throw — silently skip하면 서버에 옛 풀이가 남아
+    /// 다음 stage 호출에서 새 사주와 맞지 않는 캐시 hit 발생.
+    static func commitRecompute(
+        input: BirthInput,
+        saju: SajuComputed,
+        daeWoon: [DaeWoon]
+    ) async throws {
+        let userId = try await SupabaseManager.shared.auth.session.user.id
+
+        // 서버 캐시 무효화 — best-effort. 실패 시 다음 stage 호출에서 stale 반환되지만
+        // upsertSajuProfile 동기화는 성공시키는 것이 우선.
+        _ = try? await SupabaseManager.shared
+            .from("saju_readings")
+            .delete()
+            .eq("user_id", value: userId)
+            .execute()
+        _ = try? await SupabaseManager.shared
+            .from("daily_fortunes")
+            .delete()
+            .eq("user_id", value: userId)
+            .execute()
+
+        // Supabase 사주 동기화
+        try await SupabaseAuthManager.upsertSajuProfile(
+            input: input, saju: saju, daeWoon: daeWoon
+        )
+        try await SupabaseAuthManager.updateNickname(input.nickname)
+    }
+
+    /// recompute 시 saju_readings 로컬 캐시 삭제. 서버 캐시는 commitRecompute가 처리.
     /// SwiftData #Predicate는 String.starts(with:) 변환 미지원 — hasPrefix만 안전.
     private static func invalidateReadings(userId: UUID, modelContext: ModelContext) {
         let prefix = userId.uuidString
