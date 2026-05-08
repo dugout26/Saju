@@ -1,0 +1,94 @@
+default_platform(:ios)
+
+# Phase 3-4 — TestFlight + App Store 자동 배포.
+# 사용자 사전 작업:
+# 1. brew install fastlane
+# 2. App Store Connect API key (.p8) 생성 → ASC_PRIVATE_KEY_PATH/ASC_KEY_ID/ASC_ISSUER_ID 환경변수
+#    (StoreKit 서버 검증과 동일 key 재사용 가능)
+# 3. FASTLANE_APPLE_ID, FASTLANE_ITC_TEAM_ID — Appfile에서 사용
+#
+# Lanes:
+#   fastlane beta     — TestFlight 업로드 (build number bump + archive + pilot upload)
+#   fastlane release  — App Store 제출 (build + archive + deliver upload + submission)
+#   fastlane bump     — version bump only (project.yml MARKETING_VERSION)
+
+platform :ios do
+
+  before_all do |lane|
+    # xcodegen 재생성 — bump는 버전만 바꾸므로 불필요.
+    sh "cd .. && xcodegen generate" unless lane == :bump
+  end
+
+  private_lane :asc_api_key do
+    app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_filepath: ENV["ASC_PRIVATE_KEY_PATH"],
+      duration: 1200,
+      in_house: false
+    )
+  end
+
+  desc "TestFlight 업로드 — build number 자동 증가 + archive + pilot upload"
+  lane :beta do
+    api_key = asc_api_key
+
+    # build number 자동 증가 (CFBundleVersion). MARKETING_VERSION은 수동.
+    increment_build_number(xcodeproj: "Unse.xcodeproj")
+
+    build_app(
+      project: "Unse.xcodeproj",
+      scheme: "Unse",
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: "build",
+      output_name: "Unse.ipa",
+      clean: true,
+      skip_package_dependencies_resolution: false
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: true,
+      ipa: "build/Unse.ipa"
+    )
+  end
+
+  desc "App Store 제출 — release 빌드 archive + deliver로 메타데이터 + 빌드 업로드"
+  lane :release do
+    api_key = asc_api_key
+
+    # deliver는 메타데이터/스크린샷 업로드 도구 — binary archive를 자체 생성하지 않음.
+    # 따라서 build_app으로 IPA 생성 후 deliver에 ipa 경로 명시.
+    build_app(
+      project: "Unse.xcodeproj",
+      scheme: "Unse",
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: "build",
+      output_name: "Unse.ipa",
+      clean: true,
+      skip_package_dependencies_resolution: false
+    )
+
+    deliver(
+      api_key: api_key,
+      ipa: "build/Unse.ipa",
+      submit_for_review: false,           # 우선 false — 검토 후 수동 submit 권장
+      automatic_release: false,
+      skip_screenshots: true,              # 스크린샷은 별도 lane (snapshot) 추가 시
+      skip_metadata: false,
+      force: true                          # HTML preview 건너뜀
+    )
+  end
+
+  desc "version bump only — project.yml MARKETING_VERSION 수정 (MAJOR.MINOR.PATCH 자동 증가)"
+  lane :bump do |options|
+    type = options[:type] || "patch"     # major | minor | patch
+    increment_version_number(
+      bump_type: type,
+      xcodeproj: "Unse.xcodeproj"
+    )
+    UI.success "version bumped (#{type}). 다음: fastlane beta 또는 release"
+  end
+end
