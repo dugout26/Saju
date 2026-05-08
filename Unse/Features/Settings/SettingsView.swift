@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var logoutError: String?
     @State private var pushEnabled = false
     @State private var pushTime = Date()
+    @State private var pushSaveError: String?
 
     private var nickname: String { user?.nickname ?? "사용자" }
 
@@ -53,6 +54,11 @@ struct SettingsView: View {
                 Button("확인") { logoutError = nil }
             }, message: {
                 Text(logoutError ?? "")
+            })
+            .alert("저장 실패", isPresented: .constant(pushSaveError != nil), actions: {
+                Button("확인") { pushSaveError = nil }
+            }, message: {
+                Text(pushSaveError ?? "")
             })
             .onAppear { loadPushSettings() }
         }
@@ -152,10 +158,11 @@ struct SettingsView: View {
             }
             .tint(Color.lavenderDeep)
             .onChange(of: pushEnabled) { _, newValue in
-                user?.pushEnabled = newValue
-                try? modelContext.save()
-                if newValue {
-                    Task { _ = await PushManager.shared.requestPermission() }
+                guard let user else { return }
+                do {
+                    try SettingsService.updatePushEnabled(newValue, user: user, modelContext: modelContext)
+                } catch {
+                    pushSaveError = "알림 설정 저장 실패. 다시 시도해주세요."
                 }
             }
 
@@ -170,9 +177,14 @@ struct SettingsView: View {
                 }
                 .tint(Color.lavenderDeep)
                 .onChange(of: pushTime) { _, newValue in
-                    user?.pushTime = newValue
-                    try? modelContext.save()
-                    Task { await PushManager.shared.scheduleDailyFortunePush(at: newValue, nickname: nickname) }
+                    guard let user else { return }
+                    do {
+                        try SettingsService.updatePushTime(
+                            newValue, user: user, nickname: nickname, modelContext: modelContext
+                        )
+                    } catch {
+                        pushSaveError = "알림 시간 저장 실패. 다시 시도해주세요."
+                    }
                 }
             }
         }
@@ -284,19 +296,14 @@ struct SettingsView: View {
 
     private func deleteAccount() {
         guard let user else { return }
-        modelContext.delete(user)
-        try? modelContext.save()
+        try? SettingsService.deleteAccount(user: user, modelContext: modelContext)
     }
 
     private func logout() {
         guard let user else { return }
-        let context = modelContext
         Task { @MainActor in
             do {
-                // Supabase signOut 성공 후에만 로컬 정리 — 부분 실패로 세션 갈리는 거 방지
-                try await SupabaseAuthManager.signOut()
-                context.delete(user)
-                try context.save()
+                try await SettingsService.logout(user: user, modelContext: modelContext)
             } catch {
                 logoutError = "로그아웃 실패. 잠시 후 다시 시도해주세요.\n(\(error.localizedDescription))"
             }
