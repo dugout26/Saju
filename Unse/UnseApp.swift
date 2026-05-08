@@ -68,8 +68,13 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        // Firebase 초기화 (FCM + Crashlytics 사용을 위해 가장 먼저).
-        // GoogleService-Info.plist 부재 시(CI/test) configure가 assertion → 가드.
+        // 테스트 환경에서는 모든 외부 SDK init skip — host app launch 시 SIGABRT 회피.
+        // XCTestConfigurationFilePath는 XCTest/swift-testing 둘 다에서 set됨.
+        let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        guard !isRunningTests else { return true }
+
+        // Firebase 초기화 (FCM + Crashlytics).
+        // GoogleService-Info.plist 부재 시 (개발자 미설정) configure assertion → 가드.
         if Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil {
             FirebaseApp.configure()
             // Crashlytics는 FirebaseApp.configure 후 자동 시작. 명시적 참조로 활성 보장.
