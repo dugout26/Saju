@@ -1,7 +1,7 @@
 import StoreKit
 import Observation
 import Foundation
-import Supabase
+@preconcurrency import Supabase
 
 @Observable
 @MainActor

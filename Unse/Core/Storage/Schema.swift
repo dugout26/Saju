@@ -7,7 +7,7 @@ import SwiftData
 // 새 @Model 추가 시 SchemaV1.models에 반드시 등록.
 
 enum SchemaV1: VersionedSchema {
-    static var versionIdentifier = Schema.Version(1, 0, 0)
+    static let versionIdentifier = Schema.Version(1, 0, 0)
 
     static var models: [any PersistentModel.Type] {
         [
