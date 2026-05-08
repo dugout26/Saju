@@ -1,29 +1,26 @@
 // Apple App Store Server Notifications V2 — webhook 수신 endpoint.
 //
 // POST /functions/v1/asn-v2-webhook
-//   - 인증 헤더 없음 (Apple → us). 검증은 두 단계:
-//       1) signedPayload (JWS) decode
-//       2) signedTransactionInfo의 transactionId로 App Store Server API 재조회 (trusted)
+//   - 인증 헤더 없음 (Apple → us). signedPayload JWS는 trigger 용도로만 사용.
 //   - body: { signedPayload: string }
 //
+// Trust 모델:
+// signedPayload의 JWS 서명 (x5c chain) 검증은 구현하지 않음. 대신 모든 액션 결정은
+// **Apple App Store Server API에서 재조회한 trusted transaction state**로부터 도출.
+// notification.notificationType / data.bundleId 등은 untrusted로 간주 — transactionId
+// 추출에만 사용. 위조 payload가 들어와도 trusted state가 변하지 않으면 DB는 안 바뀜.
+//
 // 처리 흐름:
-// 1. signedPayload decode → notificationType + signedTransactionInfo
-// 2. signedTransactionInfo decode → transactionId, environment (untrusted)
-// 3. App Store Server API /inApps/v1/transactions/{id} 호출 → trusted payload
-// 4. trusted bundleId/productId 검증
-// 5. notificationType별 액션 (activate/cancel/refund/ignore) 결정
-// 6. originalTransactionId로 user 매핑 → users + subscriptions 갱신
+// 1. signedPayload decode (untrusted) → signedTransactionInfo
+// 2. signedTransactionInfo decode (untrusted) → transactionId
+// 3. App Store Server API /inApps/v1/transactions/{id} 호출 (signed by Apple) → trusted
+// 4. trusted bundleId/productId 검증 + revocation/expiration으로 action 도출
+// 5. originalTransactionId로 user 매핑 → users + subscriptions 갱신
 //
-// 응답:
-//   200 → 처리 완료 / 무시
-//   503 → ASC key 미설정 또는 mapping 미존재 (Apple retry 큐 보관, 8회까지)
-//   400/403/404 → 영구 실패 (Apple은 retry 안 함)
-//
-// Apple Developer 사전 작업:
-//   App Store Connect → My Apps → [Unse] → App Information → App Store Server Notifications
-//   Production Server URL: https://<project>.functions.supabase.co/asn-v2-webhook
-//   Sandbox Server URL: 동일 URL (environment 필드로 분기)
-//   Version: Version 2
+// 응답 (Apple ASN v2 retry: 5회, 1h/12h/24h/48h/72h):
+//   200 → 처리 완료 / 무시 (idempotent — 중복 webhook도 안전)
+//   503 → ASC key 미설정, Apple API 일시적 장애 (429/5xx), mapping 미존재 → 재시도
+//   400/403/404 → 영구 실패 (재시도 안 함)
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -58,6 +55,8 @@ interface TransactionPayload {
   type?: string;
   inAppOwnershipType?: string;
   appAccountToken?: string;
+  revocationDate?: number;
+  revocationReason?: number;   // 0 = other, 1 = refund (App Store)
 }
 
 const ALLOWED_BUNDLE_ID = "kr.mound.unse";
@@ -113,55 +112,71 @@ async function appStoreServerJWT(): Promise<string | null> {
   );
 }
 
+// fetchTrustedTransaction 결과 — Apple API 응답을 retryable 여부로 분류.
+// transient: Apple이 retry queue에 보관 (503).
+// not_found: 영구 실패 (404).
+// ok: trusted payload 사용 가능.
+type FetchResult =
+  | { kind: "ok"; payload: TransactionPayload }
+  | { kind: "not_found" }
+  | { kind: "transient" };
+
 async function fetchTrustedTransaction(
   transactionId: string,
   environment: string,
-): Promise<TransactionPayload | null> {
+): Promise<FetchResult> {
   const jwt = await appStoreServerJWT();
-  if (!jwt) return null;
+  if (!jwt) return { kind: "transient" };
 
   const baseUrl = environment === "Sandbox"
     ? "https://api.storekit-sandbox.itunes.apple.com"
     : "https://api.storekit.itunes.apple.com";
 
-  const res = await fetch(
-    `${baseUrl}/inApps/v1/transactions/${transactionId}`,
-    { headers: { Authorization: `Bearer ${jwt}` } },
-  );
-  if (!res.ok) {
-    console.error("[asn-v2-webhook] App Store Server API failed:", res.status, await res.text());
-    return null;
+  let res: Response;
+  try {
+    res = await fetch(
+      `${baseUrl}/inApps/v1/transactions/${transactionId}`,
+      { headers: { Authorization: `Bearer ${jwt}` } },
+    );
+  } catch (e) {
+    // network error → transient
+    console.error("[asn-v2-webhook] App Store API fetch error:", e);
+    return { kind: "transient" };
   }
 
-  const json = await res.json() as { signedTransactionInfo: string };
-  return decodeJWSPayload<TransactionPayload>(json.signedTransactionInfo);
+  // 4040010 (TransactionIdNotFoundError) 포함 404 → 영구 실패.
+  if (res.status === 404) return { kind: "not_found" };
+  // 429 + 5xx → 일시적, Apple retry 큐에서 재시도 가능.
+  if (res.status === 429 || res.status >= 500) {
+    console.warn("[asn-v2-webhook] App Store API transient:", res.status);
+    return { kind: "transient" };
+  }
+  // 그 외 4xx (400/401/403) → key/auth 문제로 영구 실패.
+  if (!res.ok) {
+    console.error("[asn-v2-webhook] App Store API permanent failure:", res.status, await res.text());
+    return { kind: "not_found" };
+  }
+
+  let json: { signedTransactionInfo: string };
+  try {
+    json = await res.json();
+  } catch {
+    return { kind: "transient" };
+  }
+  const payload = decodeJWSPayload<TransactionPayload>(json.signedTransactionInfo);
+  if (!payload) return { kind: "transient" };
+  return { kind: "ok", payload };
 }
 
-type DBAction = "activate" | "cancel" | "refund" | "ignore";
+type DBAction = "activate" | "cancel";
 
-// notificationType + subtype → DB 액션 매핑.
-// 참고: https://developer.apple.com/documentation/appstoreservernotifications/notificationtype
-function mapNotificationType(type: string): DBAction {
-  switch (type) {
-    case "SUBSCRIBED":
-    case "DID_RENEW":
-    case "OFFER_REDEEMED":
-      return "activate";
-    case "EXPIRED":
-    case "REVOKE":
-      return "cancel";
-    case "REFUND":
-      return "refund";
-    case "DID_CHANGE_RENEWAL_STATUS":
-      // AUTO_RENEW_DISABLED → expiresDate까지는 활성. 만료 후 EXPIRED 알림 옴.
-      return "ignore";
-    case "DID_FAIL_TO_RENEW":
-      // billing retry 또는 GRACE_PERIOD — 현 expiresDate까지 활성. EXPIRED 알림 대기.
-      return "ignore";
-    default:
-      // CONSUMPTION_REQUEST, PRICE_INCREASE, RENEWAL_EXTENDED 등 — 무시.
-      return "ignore";
-  }
+// trusted transaction state → DB action.
+// revocationDate 있으면 환불/회수, expiresDate 지났으면 만료 → cancel.
+// 그 외 → activate (premium).
+function deriveAction(tx: TransactionPayload): DBAction {
+  if (tx.revocationDate) return "cancel";
+  if (tx.expiresDate && tx.expiresDate <= Date.now()) return "cancel";
+  return "activate";
 }
 
 serve(async (req) => {
@@ -172,58 +187,47 @@ serve(async (req) => {
     const body = await req.json() as RequestBody;
     if (!body.signedPayload) return jsonError("signedPayload required", 400);
 
-    // 1. 외부 signed payload decode (untrusted — 분기용).
+    // 1. Untrusted decode — transactionId 추출 용도로만 사용.
     const notification = decodeJWSPayload<NotificationPayload>(body.signedPayload);
-    if (!notification) return jsonError("Invalid signedPayload JWS", 400);
-
-    if (notification.data?.bundleId !== ALLOWED_BUNDLE_ID) {
-      console.warn("[asn-v2-webhook] foreign bundle:", notification.data?.bundleId);
-      return jsonError("bundle_id mismatch", 403);
+    if (!notification?.data?.signedTransactionInfo) {
+      return jsonError("Invalid signedPayload structure", 400);
     }
 
-    // 2. signedTransactionInfo decode (untrusted — transactionId 추출).
     const claimedTx = decodeJWSPayload<TransactionPayload>(notification.data.signedTransactionInfo);
-    if (!claimedTx) return jsonError("Invalid signedTransactionInfo", 400);
+    if (!claimedTx?.transactionId) {
+      return jsonError("Invalid signedTransactionInfo", 400);
+    }
 
-    // 3. App Store Server API로 trusted transaction 재확인.
-    //    .p8 key 미설정 시 fail-closed (503). Apple retry 큐에 보관됨.
+    // 2. ASC key 미설정 시 fail-closed (Apple retry 큐로 시간 확보).
     if (!Deno.env.get("ASC_PRIVATE_KEY")) {
-      return jsonError(
-        "ASC_PRIVATE_KEY 미설정 — webhook 처리 불가.",
-        503,
-      );
-    }
-    const trustedTx = await fetchTrustedTransaction(
-      claimedTx.transactionId,
-      notification.data.environment,
-    );
-    if (!trustedTx) {
-      return jsonError("Transaction not verifiable", 404);
+      return jsonError("ASC_PRIVATE_KEY not configured", 503);
     }
 
+    // 3. Trusted fetch — App Store Server API가 signed by Apple.
+    const fetchResult = await fetchTrustedTransaction(
+      claimedTx.transactionId,
+      notification.data.environment ?? "Production",
+    );
+    if (fetchResult.kind === "transient") {
+      return jsonError("Apple API transient failure", 503);
+    }
+    if (fetchResult.kind === "not_found") {
+      return jsonError("Transaction not found at Apple", 404);
+    }
+    const trustedTx = fetchResult.payload;
+
+    // 4. Trusted bundleId / productId 검증.
     if (trustedTx.bundleId !== ALLOWED_BUNDLE_ID) {
-      return jsonError("trusted bundle_id mismatch", 403);
+      return jsonError("bundle_id mismatch (trusted)", 403);
     }
     if (!ALLOWED_PRODUCT_IDS.includes(trustedTx.productId)) {
-      return jsonError("trusted product not allowed", 403);
+      return jsonError("product not allowed (trusted)", 403);
     }
 
-    // 4. 액션 결정.
-    const action = mapNotificationType(notification.notificationType);
-    if (action === "ignore") {
-      console.info(
-        "[asn-v2-webhook] ignored:",
-        notification.notificationType,
-        notification.subtype ?? "",
-        notification.notificationUUID,
-      );
-      return new Response(
-        JSON.stringify({ ok: true, action: "ignore" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+    // 5. Action을 trusted state에서 도출 — notification.notificationType은 신뢰 불가.
+    const action = deriveAction(trustedTx);
 
-    // 5. originalTransactionId → user 매핑 (verify-receipt 시점에 저장됨).
+    // 6. originalTransactionId → user 매핑 (verify-receipt 시점에 저장됨).
     const url = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const admin = createClient(url, serviceKey);
@@ -240,7 +244,7 @@ serve(async (req) => {
       return jsonError("subscription lookup failed", 500);
     }
     if (!subRow) {
-      // verify-receipt 호출 전 ASN이 먼저 도착한 케이스 — Apple retry로 시간 벌기.
+      // verify-receipt 호출 전 ASN이 먼저 도착한 케이스 — 503으로 retry 큐에 보관.
       console.warn(
         "[asn-v2-webhook] subscription mapping not found:",
         trustedTx.originalTransactionId,
@@ -249,13 +253,12 @@ serve(async (req) => {
     }
     const userId = subRow.user_id;
 
-    // 6. 액션별 갱신.
+    // 7. 액션별 갱신.
     const expiresAtIso = trustedTx.expiresDate
       ? new Date(trustedTx.expiresDate).toISOString()
       : null;
 
     if (action === "activate") {
-      // 활성화는 expiresDate 필수 (auto-renewable subscription).
       if (!expiresAtIso) {
         return jsonError("activate without expiresDate", 400);
       }
@@ -288,7 +291,7 @@ serve(async (req) => {
         return jsonError("subscriptions upsert failed", 500);
       }
     } else {
-      // cancel | refund — users는 cancelled, subscriptions는 cancelled_at 마킹.
+      // cancel — refund / revoke / expired 모두 동일하게 cancelled로 표기.
       const userUpdate = await admin
         .from("users")
         .update({
@@ -301,11 +304,12 @@ serve(async (req) => {
         return jsonError("users update failed", 500);
       }
 
+      const cancelledAt = trustedTx.revocationDate
+        ? new Date(trustedTx.revocationDate).toISOString()
+        : new Date().toISOString();
       const subUpdate = await admin
         .from("subscriptions")
-        .update({
-          cancelled_at: new Date().toISOString(),
-        })
+        .update({ cancelled_at: cancelledAt })
         .eq("provider", "apple_iap")
         .eq("provider_subscription_id", trustedTx.originalTransactionId);
       if (subUpdate.error) {
@@ -316,14 +320,14 @@ serve(async (req) => {
 
     console.info(
       "[asn-v2-webhook] processed:",
-      notification.notificationType,
       "action:", action,
       "user:", userId,
       "uuid:", notification.notificationUUID,
+      "type-claimed:", notification.notificationType,
     );
 
     return new Response(
-      JSON.stringify({ ok: true, action, notificationType: notification.notificationType }),
+      JSON.stringify({ ok: true, action }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
