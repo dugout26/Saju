@@ -19,7 +19,8 @@
 //
 // 응답 (Apple ASN v2 retry: 5회, 1h/12h/24h/48h/72h):
 //   200 → 처리 완료 / 무시 (idempotent — 중복 webhook도 안전)
-//   503 → ASC key 미설정, Apple API 일시적 장애 (429/5xx), mapping 미존재 → 재시도
+//   500 → 내부 오류 (DB write 실패 등) → Apple retry
+//   503 → ASC key 미설정, Apple API 일시적 장애 (429/5xx), mapping 미존재 → Apple retry
 //   400/403/404 → 영구 실패 (재시도 안 함)
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -175,7 +176,10 @@ type DBAction = "activate" | "cancel";
 // 그 외 → activate (premium).
 function deriveAction(tx: TransactionPayload): DBAction {
   if (tx.revocationDate) return "cancel";
-  if (tx.expiresDate && tx.expiresDate <= Date.now()) return "cancel";
+  // auto-renewable subscription은 expiresDate 필수. 누락된 trusted tx는 비정상 →
+  // activate 분기에서 400으로 폐기되면 Apple retry 안 함. 여기서 cancel로 분류.
+  if (!tx.expiresDate) return "cancel";
+  if (tx.expiresDate <= Date.now()) return "cancel";
   return "activate";
 }
 
@@ -216,12 +220,18 @@ serve(async (req) => {
     }
     const trustedTx = fetchResult.payload;
 
-    // 4. Trusted bundleId / productId 검증.
+    // 4. Trusted bundleId / productId / environment 검증.
     if (trustedTx.bundleId !== ALLOWED_BUNDLE_ID) {
       return jsonError("bundle_id mismatch (trusted)", 403);
     }
     if (!ALLOWED_PRODUCT_IDS.includes(trustedTx.productId)) {
       return jsonError("product not allowed (trusted)", 403);
+    }
+    // environment 교차 검증 — untrusted notification.data.environment로 sandbox/prod
+    // namespace를 가르는 것을 trusted payload로 다시 확인. (실 exploit 어려우나 명시적.)
+    const claimedEnv = notification.data.environment ?? "Production";
+    if (trustedTx.environment && trustedTx.environment !== claimedEnv) {
+      return jsonError("environment mismatch", 403);
     }
 
     // 5. Action을 trusted state에서 도출 — notification.notificationType은 신뢰 불가.
@@ -234,7 +244,7 @@ serve(async (req) => {
 
     const { data: subRow, error: subErr } = await admin
       .from("subscriptions")
-      .select("user_id")
+      .select("user_id, started_at")
       .eq("provider", "apple_iap")
       .eq("provider_subscription_id", trustedTx.originalTransactionId)
       .maybeSingle();
@@ -259,8 +269,10 @@ serve(async (req) => {
       : null;
 
     if (action === "activate") {
+      // deriveAction이 expiresDate 누락을 cancel로 처리하므로 여기는 항상 set.
+      // 그래도 명시적 invariant.
       if (!expiresAtIso) {
-        return jsonError("activate without expiresDate", 400);
+        return jsonError("activate without expiresDate", 500);
       }
       const userUpdate = await admin
         .from("users")
@@ -274,6 +286,9 @@ serve(async (req) => {
         return jsonError("users update failed", 500);
       }
 
+      // started_at은 최초 구매일 보존 — 갱신마다 purchaseDate로 덮어쓰지 않음.
+      const startedAtIso = subRow.started_at
+        ?? new Date(trustedTx.purchaseDate).toISOString();
       const plan = trustedTx.productId.includes("monthly") ? "monthly" : "yearly";
       const subUpsert = await admin
         .from("subscriptions")
@@ -282,7 +297,7 @@ serve(async (req) => {
           plan,
           provider: "apple_iap",
           provider_subscription_id: trustedTx.originalTransactionId,
-          started_at: new Date(trustedTx.purchaseDate).toISOString(),
+          started_at: startedAtIso,
           current_period_end: expiresAtIso,
           cancelled_at: null,
         }, { onConflict: "provider,provider_subscription_id" });
@@ -292,12 +307,16 @@ serve(async (req) => {
       }
     } else {
       // cancel — refund / revoke / expired 모두 동일하게 cancelled로 표기.
+      // expiresAtIso가 null이면 (revocationDate만 있는 케이스) 기존 값 유지.
+      const userUpdatePayload: Record<string, string> = {
+        subscription_status: "cancelled",
+      };
+      if (expiresAtIso) {
+        userUpdatePayload.subscription_expires_at = expiresAtIso;
+      }
       const userUpdate = await admin
         .from("users")
-        .update({
-          subscription_status: "cancelled",
-          subscription_expires_at: expiresAtIso,
-        })
+        .update(userUpdatePayload)
         .eq("id", userId);
       if (userUpdate.error) {
         console.error("[asn-v2-webhook] users cancel failed:", userUpdate.error);
