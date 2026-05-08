@@ -13,7 +13,12 @@ final class DailyFortuneViewModel {
     var isLoading = true
     var loadError: String?
 
+    private let client: any APIClientProtocol
     private let rewardedLoader = RewardedAdLoader()
+
+    init(client: any APIClientProtocol = APIClient.shared) {
+        self.client = client
+    }
 
     /// 오늘의 운세 로드. saju 프로필 없으면 즉시 종료 (loading off).
     func loadFortune(hasSajuProfile: Bool) async {
@@ -22,7 +27,7 @@ final class DailyFortuneViewModel {
         loadError = nil
         let dayPillar = DailyFortuneEngine.dayPillarString()
         do {
-            let dto = try await APIClient.shared.fetchDailyFortune(dayPillarOfDate: dayPillar)
+            let dto = try await client.fetchDailyFortune(dayPillarOfDate: dayPillar, forDate: nil)
             snapshot = DailyFortuneSnapshot(dto: dto)
         } catch {
             Crashlytics.crashlytics().record(error: error)
@@ -36,7 +41,7 @@ final class DailyFortuneViewModel {
         guard tomorrowSnapshot == nil else { return }
         let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
         let dayPillar = DailyFortuneEngine.dayPillarString(for: tomorrow)
-        if let dto = try? await APIClient.shared.fetchDailyFortune(
+        if let dto = try? await client.fetchDailyFortune(
             dayPillarOfDate: dayPillar,
             forDate: tomorrow
         ) {
