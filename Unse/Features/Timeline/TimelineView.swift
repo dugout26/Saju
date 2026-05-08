@@ -264,11 +264,11 @@ struct DaeWoonRow: View {
     }
 
     private var stemChar: String {
-        ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"][daeWoon.pillar.stem.rawValue]
+        ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"][daeWoon.pillar.stem.rawValue]
     }
 
     private var branchChar: String {
-        ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"][daeWoon.pillar.branch.rawValue]
+        ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"][daeWoon.pillar.branch.rawValue]
     }
 
     private var elementDescription: String {
@@ -287,4 +287,3 @@ struct DaeWoonRow: View {
         }
     }
 }
-

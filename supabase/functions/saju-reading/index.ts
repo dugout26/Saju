@@ -1,5 +1,12 @@
 // 사주 단계별 풀이 (1~5단계). 캐시 우선, 없으면 OpenAI 호출 후 saju_readings에 저장.
 //
+// 기획서 #6 평생 운세 18단계를 stage별로 분할:
+//   stage 1: 글자판 + 음양오행 + 일간 기본 성향 (mini, 짧게)
+//   stage 2: 사주 구조 + 강약 + 용신/희신/기신 + 성격·기질 (mini)
+//   stage 3: 인간관계 + 가족운 + 연애/결혼운 (mini)
+//   stage 4: 일/직업운 + 재물운 + 건강 (mini)
+//   stage 5: 대운 흐름 + 향후 10년 + 시기별 조언 + 평생운 종합 (4o, 길게)
+//
 // POST /functions/v1/saju-reading
 // Authorization: Bearer <user JWT>
 // body: { stage: 1 | 2 | 3 | 4 | 5 }
@@ -8,7 +15,12 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { corsHeaders, jsonError } from "../_shared/cors.ts";
 import { getSupabaseClient, getUserId } from "../_shared/auth.ts";
-import { chatCompletion } from "../_shared/openai.ts";
+import {
+  BASE_SYSTEM_PROMPT,
+  buildSajuContextBlock,
+  chatCompletion,
+  type SajuContext,
+} from "../_shared/openai.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -40,7 +52,7 @@ serve(async (req) => {
     // 2) 사주 + 사용자 조회
     const { data: profile } = await supabase
       .from("saju_profiles")
-      .select("year_pillar, month_pillar, day_pillar, hour_pillar, day_master, five_elements_dist")
+      .select("year_pillar, month_pillar, day_pillar, hour_pillar, day_master, five_elements_dist, gender")
       .eq("user_id", userId)
       .single();
 
@@ -51,15 +63,34 @@ serve(async (req) => {
       .select("nickname")
       .eq("id", userId)
       .single();
-    const nickname = user?.nickname ?? "사용자";
 
-    // 3) OpenAI 호출 — 단계별 모델 차등
-    const model = stage <= 2 ? "gpt-4o-mini" : "gpt-4o";
-    const systemPrompt = buildSystemPrompt(stage);
-    const userMessage = buildUserMessage(profile, nickname);
-    const maxTokens = stage <= 2 ? 400 : (stage <= 4 ? 2500 : 4500);
+    const saju: SajuContext = {
+      yearPillar: profile.year_pillar,
+      monthPillar: profile.month_pillar,
+      dayPillar: profile.day_pillar,
+      hourPillar: profile.hour_pillar ?? undefined,
+      dayMaster: profile.day_master,
+      fiveElements: profile.five_elements_dist ?? {},
+      gender: profile.gender === "male"
+        ? "남"
+        : profile.gender === "female"
+          ? "여"
+          : "(미상)",
+      nickname: user?.nickname ?? undefined,
+    };
 
-    const content = await chatCompletion({ model, systemPrompt, userMessage, maxTokens });
+    // 3) OpenAI 호출 — 평생운만 4o, 나머지 mini
+    const isLifetimeStage = stage === 5;
+    const model = isLifetimeStage ? "gpt-4o" : "gpt-4o-mini";
+    const userMessage = buildUserMessage(stage, saju);
+    const maxTokens = maxTokensForStage(stage);
+
+    const content = await chatCompletion({
+      model,
+      systemPrompt: BASE_SYSTEM_PROMPT,
+      userMessage,
+      maxTokens,
+    });
 
     // 4) 저장 (race 조건은 unique constraint로 막힘)
     await supabase.from("saju_readings").upsert({
@@ -73,88 +104,85 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return jsonError((e as Error).message, 500);
+    console.error("[saju-reading] unexpected error:", e);
+    return jsonError("풀이를 불러오는 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.", 500);
   }
 });
 
-function buildSystemPrompt(stage: number): string {
-  return `당신은 자평명리(子平命理) 정통 방식의 사주 풀이 전문가입니다.
+function maxTokensForStage(stage: number): number {
+  switch (stage) {
+    case 1: return 600;
+    case 2: return 800;
+    case 3: return 800;
+    case 4: return 800;
+    case 5: return 4000;
+    default: return 600;
+  }
+}
 
-[중요 지시사항]
-- 오직 사용자가 제공한 사주 정보만으로 객관적으로 해석하세요.
-- 사용자에 대해 이미 알고 있는 어떤 정보도 해석에 반영하지 마세요.
-
-[설명 방식 - 매우 중요]
-- 독자는 사주 용어를 거의 모르는 초보자입니다.
-- 천간, 지지, 일간, 십신, 격국, 용신, 대운 같은 용어가 처음 등장할 때 반드시 괄호로 쉬운 풀이를 붙이세요.
-  예: "일간(태어난 날의 천간 = 나 자신을 나타내는 글자)"
-  예: "용신(사주에서 균형을 맞춰주는 가장 중요한 기운)"
-- 한자 용어는 반드시 한글 풀이를 함께 표기. 예: 戊(무, 큰 산의 기운)
-- "비겁이 강하다" 같은 표현 대신 "나와 같은 편이 많아서 고집이 세다" 같은 일상 언어로 풀어주세요.
-- 결론만 던지지 말고, "왜 그런지" 일상 비유나 예시로 설명하세요.
-- 음양오행을 통해 화·수·목·금·토가 얼마나 있는지 분석.
-
-[해석 프레임]
-- 자평명리 정통 방식 (일간 중심, 강약·조후·통관·병약 용신).
-- 일간 강약 판정 시 월령(월지의 계절 기운), 통근(천간이 같은 오행 지지에 뿌리), 지지장간(지지 안의 천간) 모두 고려하되, 그 과정의 결론만 쉬운 말로 전달하세요.
-- 서양 점성술, 타로, MBTI 등 다른 체계와 섞지 마세요.
-- 근거 없는 단정 대신 "이 글자가 이런 작용을 하니까 이런 경향이 나온다"는 흐름.
-
-[금지]
-- "절대", "100%", "반드시" 등 단정 표현
-- 의료·질병·약물 단어
-- 특정 종목·자산 추천
-- 부정적 운명 단정
-- 자해·자살 암시
-
-[해석 순서 — ${stage}단계]
-${sectionsForStage(stage)}
-
-[형식 요청]
-- 평문(plain text)만 사용. 마크다운(**굵게**, ##헤더, - 목록, *기울임* 등) 절대 금지.
-- 강조가 필요하면 「」 같은 문장부호로.
-- 1·2단계는 짧게(150~250자). 두루뭉술하지 않게 핵심만.
-- 3·4단계는 중간 길이(500~700자), 5단계는 자세히(1500자+).
-- 마지막에 가벼운 격려 한 줄.`;
+function buildUserMessage(stage: number, saju: SajuContext): string {
+  const ctx = buildSajuContextBlock(saju);
+  return ctx + sectionsForStage(stage);
 }
 
 function sectionsForStage(stage: number): string {
   switch (stage) {
-    case 1: return `1. 내 사주 글자판 보여주기 (어떤 글자들로 구성되어 있는지, 그게 무슨 뜻인지)
-2. 나라는 사람의 기본 성향 (일간 기준, 어떤 사람인지 한 줄로 요약 후 풀이)`;
-    case 2: return `3. 성격과 기질 (강점, 약점, 사람들과의 관계에서 나타나는 모습)`;
-    case 3: return `4. 일/돈 운의 큰 그림
-5. 가족, 연애, 인간관계 경향`;
-    case 4: return `6. 지금부터 10년간 어떤 흐름인지
-7. 조심할 시기와 잘 활용하면 좋은 시기`;
-    case 5: return `1. 내 사주 글자판
-2. 기본 성향
-3. 성격과 기질
-4. 일/돈 운의 큰 그림
-5. 가족, 연애, 인간관계 경향
-6. 향후 10년 흐름
-7. 조심할 시기와 잘 활용하면 좋은 시기 (평생운 종합)`;
-    default: return "";
+    case 1:
+      return `[이번 풀이 범위 — 1단계: 첫인상]
+1. 사주 글자판 정리 (어떤 글자들로 구성됐고 무슨 뜻인지 짧게)
+2. 음양오행 개수 분석 (오행 강약 한 줄 요약)
+3. 일간의 기본 성향 (한 줄 요약 + 일상어로 풀이)
+
+[분량] 전체 200~300자. 짧고 핵심만.`;
+
+    case 2:
+      return `[이번 풀이 범위 — 2단계: 구조와 성격]
+4. 사주의 전체 구조와 격국 (한 줄 + 풀이)
+5. 일간의 강약 분석 (월령·통근·지장간 흐름은 결론만 일상어로)
+6. 용신/희신/기신 판단
+   - 용신(균형을 맞춰주는 핵심 기운)
+   - 희신(용신을 도와주는 좋은 기운)
+   - 기신(과하면 균형을 깨는 부담 기운)
+7. 성격과 기질 (강점, 약점, 일상에서 드러나는 모습)
+
+[분량] 전체 400~500자. 자연 비유 활용.`;
+
+    case 3:
+      return `[이번 풀이 범위 — 3단계: 관계]
+8. 인간관계 성향 (사람들과 어울리는 패턴)
+9. 가족운 (부모·형제 관계 경향)
+10. 연애·결혼운 (만남의 패턴, 장기 관계에서의 모습)
+
+각 섹션 "한 줄 요약 → 일상어 풀이". 단정·예언 금지, 경향 중심.
+
+[분량] 전체 400~500자.`;
+
+    case 4:
+      return `[이번 풀이 범위 — 4단계: 일·돈·건강]
+11. 일/직업운 (잘 맞는 일의 방식, 환경)
+12. 돈/재물운 (돈을 버는 방식, 모으는 방식, 조심할 점)
+13. 건강적으로 조심할 부분 (의료 단정 금지, 생활 습관 차원에서 경향만)
+
+각 섹션 "한 줄 요약 → 자세한 설명".
+
+[분량] 전체 400~500자.`;
+
+    case 5:
+      return `[이번 풀이 범위 — 5단계: 평생운 종합]
+지금까지 분석한 내용을 바탕으로 평생 흐름을 정리합니다.
+
+14. 대운 흐름 (10년 단위로 어떤 기운이 들어오는지)
+15. 앞으로 10년의 흐름 (가장 가까운 대운 + 세운 변화)
+16. 조심해야 할 시기 (특정 기간을 단정하지 말고 경향과 활용법으로)
+17. 잘 활용하면 좋은 시기
+18. 현실적인 조언 (생활 차원, 마음가짐)
+
+마지막에 평생을 관통하는 한 줄 격려.
+
+[분량] 전체 1500~2000자. 자세하게. 자연 비유 활용.
+[형식] 각 섹션은 "한 줄 요약 → 자세한 설명" 순서.`;
+
+    default:
+      return "";
   }
-}
-
-function buildUserMessage(profile: any, nickname: string): string {
-  return `[사주 원국 정보]
-- 양력/음력: 양력 기준 변환됨
-- 일간(태어난 날의 천간 = 나 자신): ${profile.day_master}
-- 사주 4기둥 (시-일-월-년):
-  - 시주: ${profile.hour_pillar ?? "미상 (출생 시간 모름)"}
-  - 일주: ${profile.day_pillar}
-  - 월주: ${profile.month_pillar}
-  - 년주: ${profile.year_pillar}
-- 오행 분포: ${formatElements(profile.five_elements_dist)}
-
-${nickname}님을 위한 풀이를 작성하세요.`;
-}
-
-function formatElements(dist: Record<string, number>): string {
-  const map: Record<string, string> = {
-    "木": "목(나무)", "火": "화(불)", "土": "토(흙)", "金": "금(쇠)", "水": "수(물)"
-  };
-  return Object.entries(dist).map(([k, v]) => `${map[k] ?? k} ${v}개`).join(", ");
 }

@@ -1,3 +1,13 @@
 disabled_rules:
   - identifier_name
   - large_tuple
+  - todo                # 향후 작업 표식 — 의도된 marker
+  - inclusive_language  # 사주 도메인 용어 "Day Master(일간)" 표준 용어
+  - type_body_length    # SwiftUI View body는 자연스럽게 길어짐
+  - file_length
+  - function_body_length
+  - function_parameter_count
+
+line_length:
+  warning: 140
+  error: 200

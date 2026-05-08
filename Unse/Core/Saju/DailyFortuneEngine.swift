@@ -13,9 +13,9 @@ enum DailyFortuneEngine {
         let cal = Calendar.current
         let comps = cal.dateComponents([.year, .month, .day], from: date)
         let pillar = Manse.calculate(
-            year:  comps.year  ?? 2026,
+            year: comps.year  ?? 2026,
             month: comps.month ?? 1,
-            day:   comps.day   ?? 1
+            day: comps.day   ?? 1
         ).saju.day
         return pillar.characters
     }

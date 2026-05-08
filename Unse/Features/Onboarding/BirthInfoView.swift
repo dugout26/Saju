@@ -1,32 +1,5 @@
 import SwiftUI
 import SwiftData
-import Observation
-
-// MARK: - BirthInfoViewModel
-
-@Observable
-@MainActor
-final class BirthInfoViewModel {
-    var input = BirthInput()
-    var isLoading = false
-    var errorMessage: String?
-
-    var yearText:  String { String(input.year)  }
-    var monthText: String { String(format: "%02d", input.month) }
-    var dayText:   String { String(format: "%02d", input.day)   }
-    var hourText:  String { input.hour.map { String(format: "%02d", $0) } ?? "" }
-    var minText:   String { input.minute.map { String(format: "%02d", $0) } ?? "" }
-
-    var formIsValid: Bool { input.isValid && !input.nickname.isEmpty }
-
-    func compute() -> (saju: SajuComputed, daeWoon: [DaeWoon]) {
-        Manse.calculate(
-            year: input.year, month: input.month, day: input.day,
-            hour: input.hour, minute: input.minute,
-            calendar: input.calendar, gender: input.gender
-        )
-    }
-}
 
 // MARK: - BirthInfoView
 
@@ -84,11 +57,15 @@ struct BirthInfoView: View {
     private var birthdateField: some View {
         FormField(label: "생년월일") {
             HStack(spacing: 8) {
-                NumberInput(value: $vm.input.year,  suffix: "년", range: 1900...2025, flex: 1.4)
+                NumberInput(value: $vm.input.year, suffix: "년", range: 1900...currentYear, flex: 1.4)
                 NumberInput(value: $vm.input.month, suffix: "월", range: 1...12)
-                NumberInput(value: $vm.input.day,   suffix: "일", range: 1...31)
+                NumberInput(value: $vm.input.day, suffix: "일", range: 1...31)
             }
         }
+    }
+
+    private var currentYear: Int {
+        Calendar.current.component(.year, from: Date())
     }
 
     private var timeField: some View {

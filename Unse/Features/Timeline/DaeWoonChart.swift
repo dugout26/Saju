@@ -58,4 +58,3 @@ struct DaeWoonChart: View {
         return max(0.4, min(1.0, stemScore + wave))
     }
 }
-

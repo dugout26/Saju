@@ -7,19 +7,11 @@ struct SajuResultView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(SubscriptionManager.self) private var sub
+    @State private var vm = SajuResultViewModel()
     @State private var showDaily = false
     @State private var showHan = true
     @State private var showPaywall = false
-    @State private var stage1Text: String?
-    @State private var stage2Text: String?
-
-    private var pillarData: [(label: String, pillar: Pillar)] {
-        [("시주", saju.hour), ("일주", saju.day), ("월주", saju.month), ("년주", saju.year)]
-            .compactMap { label, p in p.map { (label, $0) } }
-            .filter { $0.label != "시주" || saju.hour != nil }
-        // Always show year/month/day; hour only if available
-        + (saju.hour == nil ? [("년주", saju.year), ("월주", saju.month), ("일주", saju.day)] : [])
-    }
+    @State private var chatPrompt: String?
 
     private var orderedPillars: [(label: String, pillar: Pillar)] {
         var result: [(String, Pillar)] = []
@@ -71,15 +63,14 @@ struct SajuResultView: View {
         .sheet(isPresented: $showPaywall) {
             PaywallView().environment(sub)
         }
-        .task { await loadReadings() }
-    }
-
-    private func loadReadings() async {
-        async let s1 = try? await APIClient.shared.fetchSajuReading(stage: 1, saju: saju, nickname: nickname)
-        async let s2 = try? await APIClient.shared.fetchSajuReading(stage: 2, saju: saju, nickname: nickname)
-        let (r1, r2) = await (s1, s2)
-        if let r1 { stage1Text = r1 }
-        if let r2 { stage2Text = r2 }
+        .sheet(item: Binding(
+            get: { chatPrompt.map { ChatPromptItem(text: $0) } },
+            set: { chatPrompt = $0?.text }
+        )) { item in
+            ChatView(user: nil, nickname: nickname, initialQuestion: item.text)
+                .environment(sub)
+        }
+        .task { await vm.loadReadings(saju: saju, nickname: nickname) }
     }
 
     private var headerSection: some View {
@@ -110,7 +101,7 @@ struct SajuResultView: View {
                     Text("일간 (나의 본성)")
                         .font(.pretendard(11, .semibold))
                         .foregroundStyle(Color(hex: 0x7E6228))
-                    Text(.init(stage1Text ?? "분석 중..."))
+                    Text(.init(vm.stage1Text ?? "분석 중..."))
                         .font(.serifKR(15, .medium))
                         .foregroundStyle(.ink1)
                         .lineSpacing(3)
@@ -119,6 +110,8 @@ struct SajuResultView: View {
                 .padding(14)
                 .background(Color(hex: 0xF1E4C7))
                 .clipShape(RoundedRectangle(cornerRadius: 14))
+
+                askMoreButton(question: "제 일간이 \(saju.dayMaster.character)\(saju.dayMaster.korean)인데, 이 일간이 일상에서 어떻게 드러나는지 더 자세히 알려주세요.")
             }
         }
     }
@@ -147,13 +140,31 @@ struct SajuResultView: View {
                 Text("성향 한 줄")
                     .font(.pretendard(15, .semibold))
                     .foregroundStyle(.ink1)
-                Text(.init(stage2Text ?? "분석 중..."))
+                Text(.init(vm.stage2Text ?? "분석 중..."))
                     .font(.pretendard(14))
                     .foregroundStyle(.ink2)
                     .lineSpacing(5)
-                PillButton(title: "2단계 풀이 보기 →") {}
+                askMoreButton(question: "제 성격에서 강점과 약점, 사람들과의 관계에서 드러나는 모습을 더 구체적으로 알려주세요.")
             }
         }
+    }
+
+    private func askMoreButton(question: String) -> some View {
+        Button {
+            chatPrompt = question
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 11))
+                Text("이 부분 AI에 더 물어보기")
+                    .font(.pretendard(12, .semibold))
+            }
+            .foregroundStyle(.lavenderDeep)
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .background(Color.lavenderSoft)
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     private var lifeFortuneCard: some View {
@@ -188,4 +199,9 @@ struct SajuResultView: View {
         }
         .padding(.top, 4)
     }
+}
+
+private struct ChatPromptItem: Identifiable {
+    let text: String
+    var id: String { text }
 }

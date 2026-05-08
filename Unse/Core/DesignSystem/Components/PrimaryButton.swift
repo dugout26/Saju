@@ -57,7 +57,7 @@ struct OutlineButton: View {
 
 struct PillButton: View {
     let title: String
-    var icon: String? = nil
+    var icon: String?
     let action: () -> Void
 
     var body: some View {

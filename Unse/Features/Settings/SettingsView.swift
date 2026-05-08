@@ -8,8 +8,12 @@ struct SettingsView: View {
     @Environment(SubscriptionManager.self) private var sub
     @State private var showPaywall = false
     @State private var showDeleteAlert = false
+    @State private var showLogoutAlert = false
+    @State private var logoutError: String?
     @State private var pushEnabled = false
     @State private var pushTime = Date()
+    @State private var pushSaveError: String?
+    @State private var deleteError: String?
 
     private var nickname: String { user?.nickname ?? "사용자" }
 
@@ -17,7 +21,7 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 profileSection
-                sajuListSection
+                sajuSection
                 subscriptionSection
                 notificationSection
                 supportSection
@@ -40,6 +44,36 @@ struct SettingsView: View {
                 Button("취소", role: .cancel) {}
             } message: {
                 Text("모든 데이터가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.")
+            }
+            .alert("로그아웃", isPresented: $showLogoutAlert) {
+                Button("로그아웃", role: .destructive) { logout() }
+                Button("취소", role: .cancel) {}
+            } message: {
+                Text("로그아웃하면 시작 화면으로 돌아갑니다.")
+            }
+            .alert("로그아웃 실패", isPresented: Binding(
+                get: { logoutError != nil },
+                set: { if !$0 { logoutError = nil } }
+            )) {
+                Button("확인") { logoutError = nil }
+            } message: {
+                Text(logoutError ?? "")
+            }
+            .alert("저장 실패", isPresented: Binding(
+                get: { pushSaveError != nil },
+                set: { if !$0 { pushSaveError = nil } }
+            )) {
+                Button("확인") { pushSaveError = nil }
+            } message: {
+                Text(pushSaveError ?? "")
+            }
+            .alert("삭제 실패", isPresented: Binding(
+                get: { deleteError != nil },
+                set: { if !$0 { deleteError = nil } }
+            )) {
+                Button("확인") { deleteError = nil }
+            } message: {
+                Text(deleteError ?? "")
             }
             .onAppear { loadPushSettings() }
         }
@@ -72,23 +106,15 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
-    private var sajuListSection: some View {
+    private var sajuSection: some View {
         if let user {
             Section(header: Text("사주")) {
                 NavigationLink {
-                    SajuListView(user: user)
-                        .environment(sub)
+                    EditSajuView(user: user)
                 } label: {
-                    HStack {
-                        Label("사주 관리", systemImage: "person.text.rectangle")
-                            .font(.pretendard(14))
-                            .foregroundStyle(.ink1)
-                        Spacer()
-                        let count = (user.sajuProfile != nil ? 1 : 0) + user.savedSajus.count
-                        Text("\(count)명")
-                            .font(.pretendard(13))
-                            .foregroundStyle(.ink3)
-                    }
+                    Label("사주 정보 편집", systemImage: "person.text.rectangle")
+                        .font(.pretendard(14))
+                        .foregroundStyle(.ink1)
                 }
             }
         }
@@ -147,10 +173,11 @@ struct SettingsView: View {
             }
             .tint(Color.lavenderDeep)
             .onChange(of: pushEnabled) { _, newValue in
-                user?.pushEnabled = newValue
-                try? modelContext.save()
-                if newValue {
-                    Task { _ = await PushManager.shared.requestPermission() }
+                guard let user else { return }
+                do {
+                    try SettingsService.updatePushEnabled(newValue, user: user, modelContext: modelContext)
+                } catch {
+                    pushSaveError = "알림 설정 저장 실패. 다시 시도해주세요."
                 }
             }
 
@@ -165,9 +192,14 @@ struct SettingsView: View {
                 }
                 .tint(Color.lavenderDeep)
                 .onChange(of: pushTime) { _, newValue in
-                    user?.pushTime = newValue
-                    try? modelContext.save()
-                    Task { await PushManager.shared.scheduleDailyFortunePush(at: newValue, nickname: nickname) }
+                    guard let user else { return }
+                    do {
+                        try SettingsService.updatePushTime(
+                            newValue, user: user, nickname: nickname, modelContext: modelContext
+                        )
+                    } catch {
+                        pushSaveError = "알림 시간 저장 실패. 다시 시도해주세요."
+                    }
                 }
             }
         }
@@ -225,6 +257,14 @@ struct SettingsView: View {
 
     private var dangerSection: some View {
         Section {
+            Button {
+                showLogoutAlert = true
+            } label: {
+                Label("로그아웃", systemImage: "rectangle.portrait.and.arrow.right")
+                    .font(.pretendard(14))
+                    .foregroundStyle(.ink1)
+            }
+
             Button(role: .destructive) {
                 showDeleteAlert = true
             } label: {
@@ -271,8 +311,22 @@ struct SettingsView: View {
 
     private func deleteAccount() {
         guard let user else { return }
-        modelContext.delete(user)
-        try? modelContext.save()
+        do {
+            try SettingsService.deleteAccount(user: user, modelContext: modelContext)
+        } catch {
+            deleteError = "계정 삭제 실패. 다시 시도해주세요.\n(\(error.localizedDescription))"
+        }
+    }
+
+    private func logout() {
+        guard let user else { return }
+        Task { @MainActor in
+            do {
+                try await SettingsService.logout(user: user, modelContext: modelContext)
+            } catch {
+                logoutError = "로그아웃 실패. 잠시 후 다시 시도해주세요.\n(\(error.localizedDescription))"
+            }
+        }
     }
 
     private var defaultPushTime: Date {

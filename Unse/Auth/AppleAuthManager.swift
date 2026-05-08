@@ -57,11 +57,11 @@ extension AppleAuthManager: ASAuthorizationControllerDelegate {
             return
         }
         let result = AppleAuthResult(
-            userId:    credential.user,
-            fullName:  credential.fullName?.formatted() ?? "",
-            email:     credential.email ?? "",
-            idToken:   credential.identityToken.flatMap { String(data: $0, encoding: .utf8) } ?? "",
-            rawNonce:  ""  // populated below on MainActor
+            userId: credential.user,
+            fullName: credential.fullName?.formatted() ?? "",
+            email: credential.email ?? "",
+            idToken: credential.identityToken.flatMap { String(data: $0, encoding: .utf8) } ?? "",
+            rawNonce: ""  // populated below on MainActor
         )
         Task { @MainActor in
             var resolved = result

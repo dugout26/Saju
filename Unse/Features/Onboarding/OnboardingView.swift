@@ -18,7 +18,7 @@ struct OnboardingView: View {
         .init(eyebrow: "평생의 흐름",
               titleA: "지금이", titleB: "어떤 시기인지",
               subtitle: "대운 그래프로 보는\n인생의 정점과 저점",
-              art: .timeline),
+              art: .timeline)
     ]
 
     var body: some View {
@@ -124,10 +124,10 @@ struct OnboardArt: View {
 
 struct OnboardArtColors: View {
     private let cards: [(color: Color, label: String, angle: Double, x: CGFloat, y: CGFloat)] = [
-        (.lavender, "라벤더", -12, -65,  -60),
-        (.peach,    "피치",     6,  40,  -15),
-        (.mint,     "민트",    -8, -35,   60),
-        (.cream,    "크림",    10,  55,   65),
+        (.lavender, "라벤더", -12, -65, -60),
+        (.peach, "피치", 6, 40, -15),
+        (.mint, "민트", -8, -35, 60),
+        (.cream, "크림", 10, 55, 65)
     ]
 
     var body: some View {
@@ -230,9 +230,9 @@ struct OnboardArtTimeline: View {
                 }
                 ctx.stroke(path, with: .color(color), lineWidth: 2.5)
             }
-            drawLine([(0,0.6),(0.3,0.4),(0.6,0.3),(1.0,0.5)], color: .lavenderDeep)
-            drawLine([(0,0.7),(0.3,0.65),(0.6,0.45),(1.0,0.65)], color: .peachDeep)
-            drawLine([(0,0.5),(0.3,0.55),(0.6,0.35),(1.0,0.45)], color: .mintDeep)
+            drawLine([(0, 0.6), (0.3, 0.4), (0.6, 0.3), (1.0, 0.5)], color: .lavenderDeep)
+            drawLine([(0, 0.7), (0.3, 0.65), (0.6, 0.45), (1.0, 0.65)], color: .peachDeep)
+            drawLine([(0, 0.5), (0.3, 0.55), (0.6, 0.35), (1.0, 0.45)], color: .mintDeep)
 
             // Current position marker
             let cx = w * 0.43

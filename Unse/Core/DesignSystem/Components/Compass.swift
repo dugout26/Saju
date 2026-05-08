@@ -16,10 +16,10 @@ struct Compass: View {
     private var dotOffset: CGSize {
         let r = size * 0.28
         switch direction {
-        case .east:  return CGSize(width: r,  height: 0)
+        case .east:  return CGSize(width: r, height: 0)
         case .west:  return CGSize(width: -r, height: 0)
-        case .south: return CGSize(width: 0,  height: r)
-        case .north: return CGSize(width: 0,  height: -r)
+        case .south: return CGSize(width: 0, height: r)
+        case .north: return CGSize(width: 0, height: -r)
         }
     }
 

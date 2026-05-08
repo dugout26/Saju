@@ -14,9 +14,9 @@ final class UserProfile {
     var trialStartedAt: Date?
     var subscriptionExpiresAt: Date?
     var createdAt: Date
+    var sajuModifiedCount: Int = 0   // 출생 정보 변경 횟수 (Free 1회 cap, PRO 1일 1회)
 
     @Relationship(deleteRule: .cascade) var sajuProfile: SajuProfile?
-    @Relationship(deleteRule: .cascade) var savedSajus: [SajuProfile] = []
 
     init(
         nickname: String,
@@ -113,10 +113,10 @@ extension SajuProfile {
         }()
 
         return SajuComputed(
-            year:  Pillar(stem: yStem, branch: yBranch),
+            year: Pillar(stem: yStem, branch: yBranch),
             month: Pillar(stem: mStem, branch: mBranch),
-            day:   Pillar(stem: dStem, branch: dBranch),
-            hour:  hourPillar
+            day: Pillar(stem: dStem, branch: dBranch),
+            hour: hourPillar
         )
     }
 

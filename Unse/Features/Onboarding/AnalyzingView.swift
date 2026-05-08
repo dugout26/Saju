@@ -3,21 +3,25 @@ import SwiftData
 
 struct AnalyzingView: View {
     let vm: BirthInfoViewModel
+    /// 외부 저장 로직. 제공 시 default(UserProfile insert) 대신 호출 — edit 흐름에서 사용.
+    var onSave: ((SajuComputed, [DaeWoon]) async throws -> Void)?
+    /// 분석 완료 시 호출. 제공 안 하면 RootView의 @Query 자동 swap에 위임 (onboarding).
+    var onComplete: (() -> Void)?
+    /// 화면 제목. edit 흐름에선 "사주를 다시 풀고 있어요"로.
+    var title: String = "사주를 풀고 있어요"
 
     @Environment(\.modelContext) private var modelContext
-    @State private var step = 0
+    @State private var avm = AnalyzingViewModel()
     @State private var floating = false
-    @State private var computedResult: (saju: SajuComputed, daeWoon: [DaeWoon])?
-    @State private var errorMessage: String?
 
     private let steps = [
         "생년월일을 천간지지로 변환",
         "오행 균형 분석",
         "용신 추출",
-        "대운 흐름 계산",
+        "대운 흐름 계산"
     ]
 
-    private let chars: [String] = ["壬","戊","己","癸","寅","申","卯","酉"]
+    private let chars: [String] = ["壬", "戊", "己", "癸", "寅", "申", "卯", "酉"]
 
     var body: some View {
         ZStack {
@@ -28,7 +32,7 @@ struct AnalyzingView: View {
                 floatingChars
                     .padding(.bottom, 36)
 
-                Text("사주를 풀고 있어요")
+                Text(title)
                     .font(.serifKR(22, .semibold))
                     .foregroundStyle(.ink1)
 
@@ -38,15 +42,28 @@ struct AnalyzingView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationBarBackButtonHidden()
-        .alert("저장 중 오류가 발생했어요", isPresented: .constant(errorMessage != nil), actions: {
+        .alert("저장 중 오류가 발생했어요", isPresented: Binding(
+            get: { avm.errorMessage != nil },
+            set: { if !$0 { avm.errorMessage = nil } }
+        )) {
             Button("다시 시도") {
-                errorMessage = nil
+                avm.errorMessage = nil
                 Task { await runAnimation() }
             }
-        }, message: {
-            Text(errorMessage ?? "")
-        })
+        } message: {
+            Text(avm.errorMessage ?? "")
+        }
         .task { await runAnimation() }
+    }
+
+    private func runAnimation() async {
+        await avm.runAnimation(
+            birthVM: vm,
+            stepCount: steps.count,
+            onSave: onSave,
+            onComplete: onComplete,
+            modelContext: modelContext
+        )
     }
 
     private var floatingChars: some View {
@@ -80,8 +97,8 @@ struct AnalyzingView: View {
                         .font(.pretendard(13))
                         .foregroundStyle(.ink2)
                 }
-                .opacity(i <= step ? 1 : 0.25)
-                .animation(.easeInOut(duration: 0.3).delay(Double(i) * 0.05), value: step)
+                .opacity(i <= avm.step ? 1 : 0.25)
+                .animation(.easeInOut(duration: 0.3).delay(Double(i) * 0.05), value: avm.step)
             }
         }
         .frame(maxWidth: 280, alignment: .leading)
@@ -89,60 +106,19 @@ struct AnalyzingView: View {
 
     private func stepDot(index i: Int) -> some View {
         ZStack {
-            if i < step {
+            if i < avm.step {
                 Circle().fill(Color.lavenderDeep)
                     .frame(width: 16, height: 16)
                 Image(systemName: "checkmark")
                     .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(.white)
-            } else if i == step {
+            } else if i == avm.step {
                 Circle().stroke(Color.lavenderDeep, lineWidth: 2)
                     .frame(width: 16, height: 16)
             } else {
                 Circle().fill(Color(hex: 0xE5E3DC))
                     .frame(width: 16, height: 16)
             }
-        }
-    }
-
-    private func runAnimation() async {
-        let result = vm.compute()
-        computedResult = result
-
-        for i in steps.indices {
-            try? await Task.sleep(for: .seconds(1.1))
-            withAnimation { step = i + 1 }
-        }
-
-        try? await Task.sleep(for: .seconds(0.5))
-
-        do {
-            // 인증은 LoginView에서 끝남. 여기서는 사주 데이터 동기화만.
-            // 닉네임은 vm.input.nickname → users 테이블 update.
-            try await SupabaseAuthManager.updateNickname(vm.input.nickname)
-
-            // Supabase saju_profiles upsert
-            try await SupabaseAuthManager.upsertSajuProfile(
-                input: vm.input,
-                saju: result.saju,
-                daeWoon: result.daeWoon
-            )
-
-            // SwiftData 로컬 캐시 (UserProfile + SajuProfile).
-            // 저장되면 RootView가 @Query로 감지해서 자동으로 MainTabView(홈)로 swap.
-            let user = UserProfile(nickname: vm.input.nickname, authProvider: "apple")
-            let profile = SajuProfile(
-                input: vm.input, saju: result.saju, daeWoon: result.daeWoon,
-                displayName: vm.input.nickname, relation: "본인"
-            )
-            user.sajuProfile = profile
-            modelContext.insert(user)
-            try? modelContext.save()
-
-            // 푸시 권한 요청 — 사용자가 거부해도 진행
-            _ = await PushManager.shared.requestPermission()
-        } catch {
-            errorMessage = error.localizedDescription
         }
     }
 }
