@@ -71,7 +71,11 @@ serve(async (req) => {
       hourPillar: profile.hour_pillar ?? undefined,
       dayMaster: profile.day_master,
       fiveElements: profile.five_elements_dist ?? {},
-      gender: profile.gender === "male" ? "남" : "여",
+      gender: profile.gender === "male"
+        ? "남"
+        : profile.gender === "female"
+          ? "여"
+          : "(미상)",
       nickname: user?.nickname ?? undefined,
     };
 
@@ -100,7 +104,8 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return jsonError((e as Error).message, 500);
+    console.error("[saju-reading] unexpected error:", e);
+    return jsonError("풀이를 불러오는 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.", 500);
   }
 });
 

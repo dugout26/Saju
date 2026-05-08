@@ -77,10 +77,11 @@ enum SajuEditService {
 
     /// recompute 시 saju_readings 로컬 캐시 삭제. 서버 캐시는 AnalyzingView가
     /// Supabase upsert 시점에 별도 무효화 (또는 서버 함수가 stage 호출 시 새로 생성).
+    /// SwiftData #Predicate는 String.starts(with:) 변환 미지원 — hasPrefix만 안전.
     private static func invalidateReadings(userId: UUID, modelContext: ModelContext) {
         let prefix = userId.uuidString
         let descriptor = FetchDescriptor<SajuReading>(
-            predicate: #Predicate { $0.key.starts(with: prefix) }
+            predicate: #Predicate<SajuReading> { $0.key.hasPrefix(prefix) }
         )
         if let stale = try? modelContext.fetch(descriptor) {
             for row in stale { modelContext.delete(row) }

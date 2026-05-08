@@ -126,6 +126,7 @@ serve(async (req) => {
       },
     });
   } catch (e) {
-    return jsonError((e as Error).message, 500);
+    console.error("[chat] unexpected error:", e);
+    return jsonError("잠시 오류가 발생했어요. 다시 시도해 주세요.", 500);
   }
 });

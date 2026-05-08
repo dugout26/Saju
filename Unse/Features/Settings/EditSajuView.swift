@@ -56,19 +56,20 @@ struct EditSajuView: View {
                 vm: vm,
                 onSave: { saju, daeWoon in
                     // SwiftData 업데이트는 EditSajuView.performSave에서 이미 완료.
-                    // 서버 캐시 무효화 (옛 풀이가 새 사주에 맞지 않으니까)
-                    if let userId = try? await SupabaseManager.shared.auth.session.user.id {
-                        _ = try? await SupabaseManager.shared
-                            .from("saju_readings")
-                            .delete()
-                            .eq("user_id", value: userId)
-                            .execute()
-                        _ = try? await SupabaseManager.shared
-                            .from("daily_fortunes")
-                            .delete()
-                            .eq("user_id", value: userId)
-                            .execute()
-                    }
+                    // 서버 캐시 무효화 (옛 풀이가 새 사주에 맞지 않으니까).
+                    // session 조회 실패 시 silently skip하면 서버에 옛 풀이가 남아 다음 stage 호출에서
+                    // 새 사주와 맞지 않는 캐시 hit가 발생 — 호출자에게 throw해서 오류 표시.
+                    let userId = try await SupabaseManager.shared.auth.session.user.id
+                    _ = try? await SupabaseManager.shared
+                        .from("saju_readings")
+                        .delete()
+                        .eq("user_id", value: userId)
+                        .execute()
+                    _ = try? await SupabaseManager.shared
+                        .from("daily_fortunes")
+                        .delete()
+                        .eq("user_id", value: userId)
+                        .execute()
                     // Supabase 사주 동기화
                     try await SupabaseAuthManager.upsertSajuProfile(
                         input: vm.input, saju: saju, daeWoon: daeWoon
