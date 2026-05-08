@@ -173,6 +173,15 @@ xcodebuild test -project Unse.xcodeproj -scheme Unse \
 
 **가이드 4번 (Goal-Driven)**: 코드 변경 후 빌드 검증 통과 전엔 다음 작업으로 안 넘어감.
 
+### TestFlight / App Store 제출 전 필수 — Device + Release 테스트
+시뮬레이터 + Debug 빌드만 검증하면 SwiftData iOS 18 production 버그 (Release 빌드의 `BackingData.set` assertion 크래시 등)가 노출되지 않음.
+다음 시나리오를 실기기 + Release scheme에서 반드시 한 번 돌려볼 것:
+
+1. **출생 정보 편집 → 사주 재계산 흐름** (`SajuEditService.recomputeAndSaveLocally` + `invalidateReadings`)
+2. **백그라운드 → 포그라운드 전환 후 사주 탭 진입** (FutureBackingData 우회 검증 — RootView scenePhase mitigation 동작 확인)
+3. **앱 강제 종료 → 재실행 → 모든 탭 진입** (ModelContainer 복원, VersionedSchema 정상 로드)
+4. **장시간 사용 (30분+) → 챗봇 streaming → 사주 풀이 연속 호출** (메모리 누수, Task cancellation)
+
 ---
 
 ## 7. 폴더 구조 (확정)

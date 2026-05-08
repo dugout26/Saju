@@ -21,13 +21,7 @@ struct UnseApp: App {
                     }
                 }
         }
-        .modelContainer(for: [
-            UserProfile.self,
-            SajuProfile.self,
-            DailyFortune.self,
-            ChatMessage.self,
-            SajuReading.self
-        ])
+        .modelContainer(AppModelContainer.shared)
     }
 
     @ViewBuilder
@@ -111,12 +105,22 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Query private var users: [UserProfile]
     @State private var appConfig: AppConfigDTO?
+    @State private var refreshedUser: UserProfile?
+
+    // SwiftData iOS 18 FutureBackingData mitigation —
+    // bg→fg 복귀 시 @Model의 relationship backing data가 swap되어
+    // user.sajuProfile 접근 시 fatal error 발생. PersistentIdentifier로
+    // 재조회한 인스턴스는 fresh backing data로 복원됨.
+    private var currentUser: UserProfile? {
+        refreshedUser ?? users.first
+    }
 
     var body: some View {
         ZStack {
-            if let user = users.first {
+            if let user = currentUser {
                 MainTabView(user: user)
             } else {
                 OnboardingView()
@@ -132,6 +136,11 @@ struct RootView: View {
             if users.first != nil {
                 _ = await PushManager.shared.requestPermission()
             }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active,
+                  let id = users.first?.persistentModelID else { return }
+            refreshedUser = modelContext.model(for: id) as? UserProfile
         }
     }
 }
