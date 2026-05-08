@@ -52,35 +52,35 @@ extension Color {
     init(hex: UInt32, alpha: Double = 1) {
         self.init(
             .sRGB,
-            red:     Double((hex >> 16) & 0xFF) / 255,
-            green:   Double((hex >> 8)  & 0xFF) / 255,
-            blue:    Double(hex          & 0xFF) / 255,
+            red: Double((hex >> 16) & 0xFF) / 255,
+            green: Double((hex >> 8)  & 0xFF) / 255,
+            blue: Double(hex          & 0xFF) / 255,
             opacity: alpha
         )
     }
 }
 
 extension ShapeStyle where Self == Color {
-    static var bg: Color           { Color.bg }
-    static var surface: Color      { Color.surface }
-    static var ink1: Color         { Color.ink1 }
-    static var ink2: Color         { Color.ink2 }
-    static var ink3: Color         { Color.ink3 }
-    static var ink4: Color         { Color.ink4 }
-    static var line: Color         { Color.line }
-    static var lavender: Color     { Color.lavender }
+    static var bg: Color { Color.bg }
+    static var surface: Color { Color.surface }
+    static var ink1: Color { Color.ink1 }
+    static var ink2: Color { Color.ink2 }
+    static var ink3: Color { Color.ink3 }
+    static var ink4: Color { Color.ink4 }
+    static var line: Color { Color.line }
+    static var lavender: Color { Color.lavender }
     static var lavenderDeep: Color { Color.lavenderDeep }
     static var lavenderSoft: Color { Color.lavenderSoft }
-    static var peach: Color        { Color.peach }
-    static var peachDeep: Color    { Color.peachDeep }
-    static var peachSoft: Color    { Color.peachSoft }
-    static var mint: Color         { Color.mint }
-    static var mintDeep: Color     { Color.mintDeep }
-    static var mintSoft: Color     { Color.mintSoft }
-    static var cream: Color        { Color.cream }
-    static var elWood: Color       { Color.elWood }
-    static var elFire: Color       { Color.elFire }
-    static var elEarth: Color      { Color.elEarth }
-    static var elMetal: Color      { Color.elMetal }
-    static var elWater: Color      { Color.elWater }
+    static var peach: Color { Color.peach }
+    static var peachDeep: Color { Color.peachDeep }
+    static var peachSoft: Color { Color.peachSoft }
+    static var mint: Color { Color.mint }
+    static var mintDeep: Color { Color.mintDeep }
+    static var mintSoft: Color { Color.mintSoft }
+    static var cream: Color { Color.cream }
+    static var elWood: Color { Color.elWood }
+    static var elFire: Color { Color.elFire }
+    static var elEarth: Color { Color.elEarth }
+    static var elMetal: Color { Color.elMetal }
+    static var elWater: Color { Color.elWater }
 }

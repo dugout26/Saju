@@ -50,9 +50,9 @@ final class KakaoAuthManager {
                     return
                 }
                 let result = KakaoAuthResult(
-                    userId:      String(user.id ?? 0),
-                    nickname:    user.kakaoAccount?.profile?.nickname ?? "",
-                    email:       user.kakaoAccount?.email ?? "",
+                    userId: String(user.id ?? 0),
+                    nickname: user.kakaoAccount?.profile?.nickname ?? "",
+                    email: user.kakaoAccount?.email ?? "",
                     accessToken: accessToken
                 )
                 cont.resume(returning: result)
@@ -63,8 +63,7 @@ final class KakaoAuthManager {
     func signOut() async throws {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             UserApi.shared.logout { error in
-                if let error { cont.resume(throwing: error) }
-                else { cont.resume() }
+                if let error { cont.resume(throwing: error) } else { cont.resume() }
             }
         }
     }

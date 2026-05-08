@@ -15,17 +15,34 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 30
 
+    env:
+      # 결정적 빌드 — runner image 변동에 흔들리지 않게 명시 고정
+      IOS_SIMULATOR_DEVICE: iPhone 16
+      IOS_SIMULATOR_OS: "18.2"
+
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache Homebrew (xcodegen, swiftlint)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            /usr/local/Cellar/xcodegen
+            /usr/local/Cellar/swiftlint
+          key: brew-${{ runner.os }}-xcodegen-swiftlint-v1
+
       - name: Install xcodegen + swiftlint
-        run: brew install xcodegen swiftlint
+        run: |
+          brew install xcodegen swiftlint
+          echo "xcodegen $(xcodegen --version)"
+          echo "swiftlint $(swiftlint --version)"
 
       - name: Generate Xcode project
         run: xcodegen generate
 
-      - name: SwiftLint
-        run: swiftlint
+      - name: SwiftLint (strict — warning은 error로 처리)
+        run: swiftlint lint --strict
 
       - name: Build
         run: |
@@ -41,5 +58,5 @@ jobs:
           xcodebuild test \
             -project Unse.xcodeproj \
             -scheme Unse \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -destination "platform=iOS Simulator,name=${IOS_SIMULATOR_DEVICE},OS=${IOS_SIMULATOR_OS}" \
             -skipPackagePluginValidation

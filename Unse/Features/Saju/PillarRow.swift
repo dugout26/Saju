@@ -40,7 +40,7 @@ struct PillarColumn: View {
 struct PillarCell: View {
     let char: String
     let element: Element
-    var subtext: String? = nil
+    var subtext: String?
 
     var body: some View {
         let colors = element.colors

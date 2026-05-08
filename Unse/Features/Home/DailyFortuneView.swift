@@ -110,10 +110,10 @@ struct DailyFortuneView: View {
                 .minTapTarget()
             }
         }
-        .navigationDestination(isPresented: $showChat)     { ChatView(user: user) }
+        .navigationDestination(isPresented: $showChat) { ChatView(user: user) }
         .navigationDestination(isPresented: $showTimeline) { TimelineView(user: user) }
-        .sheet(isPresented: $showShare)                    { ShareCardView(theme: theme, nickname: nickname) }
-        .sheet(isPresented: $showPaywall)                  { PaywallView().environment(sub) }
+        .sheet(isPresented: $showShare) { ShareCardView(theme: theme, nickname: nickname) }
+        .sheet(isPresented: $showPaywall) { PaywallView().environment(sub) }
         .sheet(item: $tomorrowSnapshot) { snap in
             TomorrowFortuneSheet(snapshot: snap)
         }
@@ -333,7 +333,7 @@ private struct AIAnalysisLoadingView: View {
         "오늘의 일진을 읽는 중...",
         "사주와 일진의 흐름을 비교 중...",
         "오늘의 행운 색을 고르는 중...",
-        "한 줄 운세를 다듬는 중...",
+        "한 줄 운세를 다듬는 중..."
     ]
 
     var body: some View {
@@ -342,8 +342,8 @@ private struct AIAnalysisLoadingView: View {
 
             // 떠다니는 한자들
             HStack(spacing: 8) {
-                ForEach(["甲","乙","丙","丁","戊","己"].indices, id: \.self) { i in
-                    Text(["甲","乙","丙","丁","戊","己"][i])
+                ForEach(["甲", "乙", "丙", "丁", "戊", "己"].indices, id: \.self) { i in
+                    Text(["甲", "乙", "丙", "丁", "戊", "己"][i])
                         .font(.serifKR(20, .medium))
                         .foregroundStyle(.lavenderDeep)
                         .frame(width: 36, height: 36)

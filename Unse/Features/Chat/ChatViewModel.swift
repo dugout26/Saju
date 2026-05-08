@@ -12,7 +12,7 @@ final class ChatViewModel {
     let suggestedQuestions = [
         "이번 달 금전운은 어떤가요?",
         "연애운이 좋은 시기는 언제예요?",
-        "저랑 잘 맞는 사람의 일간은?",
+        "저랑 잘 맞는 사람의 일간은?"
     ]
 
     private let rewardedLoader = RewardedAdLoader()

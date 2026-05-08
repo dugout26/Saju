@@ -113,10 +113,10 @@ extension SajuProfile {
         }()
 
         return SajuComputed(
-            year:  Pillar(stem: yStem, branch: yBranch),
+            year: Pillar(stem: yStem, branch: yBranch),
             month: Pillar(stem: mStem, branch: mBranch),
-            day:   Pillar(stem: dStem, branch: dBranch),
-            hour:  hourPillar
+            day: Pillar(stem: dStem, branch: dBranch),
+            hour: hourPillar
         )
     }
 

@@ -26,7 +26,7 @@ struct UnseApp: App {
             SajuProfile.self,
             DailyFortune.self,
             ChatMessage.self,
-            SajuReading.self,
+            SajuReading.self
         ])
     }
 

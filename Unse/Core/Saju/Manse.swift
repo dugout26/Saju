@@ -58,7 +58,7 @@ enum Manse {
         let stemIdx   = (effectiveYear - 4).modulo(10)
         let branchIdx = (effectiveYear - 4).modulo(12)
         return Pillar(
-            stem:   HeavenlyStem(rawValue: stemIdx)!,
+            stem: HeavenlyStem(rawValue: stemIdx)!,
             branch: EarthlyBranch(rawValue: branchIdx)!
         )
     }
@@ -77,7 +77,7 @@ enum Manse {
         let stemRaw = (yinStemRaw + monthBranchOffset).modulo(10)
 
         return Pillar(
-            stem:   HeavenlyStem(rawValue: stemRaw)!,
+            stem: HeavenlyStem(rawValue: stemRaw)!,
             branch: EarthlyBranch(rawValue: branchRaw)!
         )
     }
@@ -91,7 +91,7 @@ enum Manse {
         let referenceIdx = 54   // 戊午
         let idx60 = (jdn - referenceJDN + referenceIdx + 60 * 10000).modulo(60)
         return Pillar(
-            stem:   HeavenlyStem(rawValue: idx60 % 10)!,
+            stem: HeavenlyStem(rawValue: idx60 % 10)!,
             branch: EarthlyBranch(rawValue: idx60 % 12)!
         )
     }
@@ -114,7 +114,7 @@ enum Manse {
         let idx60 = (ziStartIdx + branchRaw).modulo(60)
 
         return Pillar(
-            stem:   HeavenlyStem(rawValue: idx60 % 10)!,
+            stem: HeavenlyStem(rawValue: idx60 % 10)!,
             branch: EarthlyBranch(rawValue: idx60 % 12)!
         )
     }
@@ -147,7 +147,7 @@ enum Manse {
             result.append(DaeWoon(
                 startAge: age,
                 pillar: Pillar(
-                    stem:   HeavenlyStem(rawValue: idx % 10)!,
+                    stem: HeavenlyStem(rawValue: idx % 10)!,
                     branch: EarthlyBranch(rawValue: idx % 12)!
                 ),
                 startYear: year

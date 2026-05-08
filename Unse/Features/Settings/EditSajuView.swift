@@ -111,9 +111,9 @@ struct EditSajuView: View {
     private var birthdateField: some View {
         FormField(label: "생년월일") {
             HStack(spacing: 8) {
-                NumberInput(value: $vm.input.year,  suffix: "년", range: 1900...currentYear, flex: 1.4)
+                NumberInput(value: $vm.input.year, suffix: "년", range: 1900...currentYear, flex: 1.4)
                 NumberInput(value: $vm.input.month, suffix: "월", range: 1...12)
-                NumberInput(value: $vm.input.day,   suffix: "일", range: 1...31)
+                NumberInput(value: $vm.input.day, suffix: "일", range: 1...31)
             }
         }
     }

@@ -7,7 +7,7 @@ enum HeavenlyStem: Int, CaseIterable, Codable, Sendable {
     var character: String { String(describing: self) }
 
     var korean: String {
-        ["갑","을","병","정","무","기","경","신","임","계"][rawValue]
+        ["갑", "을", "병", "정", "무", "기", "경", "신", "임", "계"][rawValue]
     }
 
     var element: Element {
@@ -24,7 +24,7 @@ enum EarthlyBranch: Int, CaseIterable, Codable, Sendable {
     var character: String { String(describing: self) }
 
     var korean: String {
-        ["자","축","인","묘","진","사","오","미","신","유","술","해"][rawValue]
+        ["자", "축", "인", "묘", "진", "사", "오", "미", "신", "유", "술", "해"][rawValue]
     }
 
     var element: Element {
@@ -53,7 +53,7 @@ enum Element: String, CaseIterable, Codable, Sendable {
 
 // MARK: - 기둥 (Pillar)
 struct Pillar: Equatable, Codable, Sendable {
-    let stem:   HeavenlyStem
+    let stem: HeavenlyStem
     let branch: EarthlyBranch
 
     var characters: String { stem.character + branch.character }
@@ -67,10 +67,10 @@ struct Pillar: Equatable, Codable, Sendable {
 
 // MARK: - 사주 계산 결과
 struct SajuComputed: Equatable, Sendable {
-    let year:  Pillar
+    let year: Pillar
     let month: Pillar
-    let day:   Pillar
-    let hour:  Pillar?   // nil when birth time is unknown
+    let day: Pillar
+    let hour: Pillar?   // nil when birth time is unknown
 
     var dayMaster: HeavenlyStem { day.stem }
 
@@ -101,10 +101,10 @@ struct DaeWoon: Identifiable, Codable, Sendable {
 // MARK: - 생년월일 입력 데이터
 struct BirthInput {
     var calendar: BirthCalendar = .solar
-    var year:  Int = 1996
+    var year: Int = 1996
     var month: Int = 3
-    var day:   Int = 15
-    var hour:  Int? = 14
+    var day: Int = 15
+    var hour: Int? = 14
     var minute: Int? = 0
     var gender: Gender = .female
     var nickname: String = ""

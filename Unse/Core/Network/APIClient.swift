@@ -143,7 +143,11 @@ actor APIClient {
         case 1:
             return "\(nickname)님은 \(day.character)(\(day.korean)) 일간으로, \(dom.rawValue)(\(dom.korean)) 기운이 두드러진 사주로 해석됩니다."
         case 2:
-            return "\(day.character) 일간은 차분함과 결단력이 함께 흐르는 성향으로 풀이됩니다.\n\n오행 균형에서 \(dom.rawValue) 기운이 두드러져, 이 영역에서 강점이 자연스럽게 드러나는 흐름으로 해석됩니다."
+            return """
+            \(day.character) 일간은 차분함과 결단력이 함께 흐르는 성향으로 풀이됩니다.
+
+            오행 균형에서 \(dom.rawValue) 기운이 두드러져, 이 영역에서 강점이 자연스럽게 드러나는 흐름으로 해석됩니다.
+            """
         default:
             return "\(stage)단계 풀이는 준비 중입니다."
         }
