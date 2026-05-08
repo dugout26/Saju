@@ -4,6 +4,7 @@ import KakaoSDKCommon
 import KakaoSDKAuth
 import FirebaseCore
 import FirebaseCrashlytics
+import AppTrackingTransparency
 
 @main
 struct UnseApp: App {
@@ -165,16 +166,7 @@ struct MainTabView: View {
                     Label("오늘", systemImage: "sun.max")
                 }
 
-            Group {
-                if let profile = user.sajuProfile, let saju = profile.computed {
-                    SajuResultView(saju: saju, daeWoon: profile.daeWoon, nickname: user.nickname)
-                } else {
-                    Text("사주 정보가 없습니다")
-                }
-            }
-            .tabItem {
-                Label("사주", systemImage: "square.grid.2x2")
-            }
+            sajuTab
 
             TimelineView(user: user)
                 .tabItem {
@@ -192,5 +184,27 @@ struct MainTabView: View {
                 }
         }
         .tint(.lavenderDeep)
+        // ATT prompt — 로그인 + 온보딩 완료 후 main tab 진입 시 한 번 호출.
+        // .notDetermined 상태에서만 prompt (Apple은 거부 후 재요청 불가).
+        // AdMob personalized ads 활성화에 IDFA 필요. 거부 시 non-personalized로 fallback.
+        .task {
+            if ATTrackingManager.trackingAuthorizationStatus == .notDetermined {
+                _ = await ATTrackingManager.requestTrackingAuthorization()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var sajuTab: some View {
+        Group {
+            if let profile = user.sajuProfile, let saju = profile.computed {
+                SajuResultView(saju: saju, daeWoon: profile.daeWoon, nickname: user.nickname)
+            } else {
+                Text("사주 정보가 없습니다")
+            }
+        }
+        .tabItem {
+            Label("사주", systemImage: "square.grid.2x2")
+        }
     }
 }

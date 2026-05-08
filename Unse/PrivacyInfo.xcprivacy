@@ -6,17 +6,22 @@
     하루결 앱 Privacy Manifest
     근거: Apple App Store 2024-05-01 강제 (PrivacyInfo.xcprivacy 미제출 시 업로드 거부).
 
-    NSPrivacyTracking은 false — 현재 ATT (App Tracking Transparency) 미적용.
-    ATT 추가 PR (issue #8) 머지 후 true로 변경 + NSPrivacyTrackingDomains 추가 예정.
+    NSPrivacyTracking: true — ATT prompt + AdMob personalized ads 사용.
+    사용자가 ATT 거부 시 AdMob은 non-personalized ads로 fallback.
+    NSPrivacyTrackingDomains는 IDFA/cross-app tracking 시 contact되는 도메인만.
 
     NSPrivacyAccessedAPITypes — 우리가 직접 호출하는 required reason API만 명시.
     AdMob/Firebase SDK는 자체 PrivacyInfo.xcprivacy를 번들에 포함시키므로 여기서 중복 선언 X.
     -->
     <key>NSPrivacyTracking</key>
-    <false/>
+    <true/>
 
     <key>NSPrivacyTrackingDomains</key>
-    <array/>
+    <array>
+        <string>googleads.g.doubleclick.net</string>
+        <string>pagead2.googlesyndication.com</string>
+        <string>googletagservices.com</string>
+    </array>
 
     <key>NSPrivacyCollectedDataTypes</key>
     <array>
