@@ -161,7 +161,7 @@ final class DailyFortuneViewModel {
     /// 광고 reward 또는 1.5s fallback 후 detail load 클로저 실행. hasGranted로 이중 trigger 방지.
     private func gatedDetailLoad(_ load: @escaping @Sendable @MainActor () async -> Void) {
         var hasGranted = false
-        let grant: @MainActor () -> Void = {
+        let grant: @MainActor () -> Void = { @MainActor in
             guard !hasGranted else { return }
             hasGranted = true
             Task { await load() }
