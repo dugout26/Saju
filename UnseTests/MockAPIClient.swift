@@ -8,6 +8,7 @@ import Foundation
 
 actor MockAPIClient: APIClientProtocol {
     var dailyFortuneResult: Result<DailyFortuneDTO, Error>?
+    var dailyDetailResult: Result<String, Error>?
     var sajuReadingResult: Result<String, Error>?
     var appConfigResult: Result<AppConfigDTO, Error>?
     var registerPushTokenResult: Result<Void, Error>?
@@ -15,6 +16,7 @@ actor MockAPIClient: APIClientProtocol {
     var chatStreamError: Error?
 
     var dailyFortuneCallCount = 0
+    var dailyDetailCallCount = 0
     var sajuReadingCallCount = 0
 
     func setDailyFortune(_ result: Result<DailyFortuneDTO, Error>) {
@@ -34,6 +36,14 @@ actor MockAPIClient: APIClientProtocol {
         dailyFortuneCallCount += 1
         guard let result = dailyFortuneResult else {
             throw NSError(domain: "MockAPIClient", code: 0, userInfo: [NSLocalizedDescriptionKey: "dailyFortuneResult 미설정"])
+        }
+        return try result.get()
+    }
+
+    func fetchDailyDetail(dayPillarOfDate: String, forDate: Date?, isTomorrow: Bool) async throws -> String {
+        dailyDetailCallCount += 1
+        guard let result = dailyDetailResult else {
+            throw NSError(domain: "MockAPIClient", code: 0, userInfo: [NSLocalizedDescriptionKey: "dailyDetailResult 미설정"])
         }
         return try result.get()
     }

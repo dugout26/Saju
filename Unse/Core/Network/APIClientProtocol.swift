@@ -9,6 +9,7 @@ import Foundation
 
 protocol APIClientProtocol: Sendable {
     func fetchDailyFortune(dayPillarOfDate: String, forDate: Date?) async throws -> DailyFortuneDTO
+    func fetchDailyDetail(dayPillarOfDate: String, forDate: Date?, isTomorrow: Bool) async throws -> String
     func fetchSajuReading(stage: Int, saju: SajuComputed, nickname: String) async throws -> String
     func fetchAppConfig() async throws -> AppConfigDTO
     func registerPushToken(_ token: String, userId: String) async throws
