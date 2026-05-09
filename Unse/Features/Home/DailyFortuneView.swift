@@ -153,14 +153,9 @@ struct DailyFortuneView: View {
                     RoundedRectangle(cornerRadius: 14)
                         .fill(Color(hexString: snap.luckyColorHex) ?? theme.soft)
                         .frame(width: 44, height: 44)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(snap.luckyColorName)
-                            .font(.serifKR(16, .semibold))
-                            .foregroundStyle(.ink1)
-                        Text(snap.luckyColorHex)
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundStyle(.ink3)
-                    }
+                    Text(snap.luckyColorName)
+                        .font(.serifKR(16, .semibold))
+                        .foregroundStyle(.ink1)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -259,7 +254,7 @@ struct DailyFortuneView: View {
                 showChat = true
             }
             HStack(spacing: 8) {
-                OutlineButton(title: "주간 흐름") { showTimeline = true }
+                OutlineButton(title: "평생운") { showTimeline = true }
                 OutlineButton(title: "내일 미리보기") {
                     vm.loadTomorrowGated(isPremium: sub.isPremium)
                 }
