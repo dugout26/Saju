@@ -13,6 +13,13 @@ final class DailyFortuneViewModel {
     var isLoading = true
     var loadError: String?
 
+    /// 오늘 자세 풀이 (사용자 #2 형식). nil이면 미로드, 빈 문자열이면 로딩 중.
+    var todayDetail: String?
+    /// 내일 자세 풀이.
+    var tomorrowDetail: String?
+    var isLoadingDetail = false
+    var detailError: String?
+
     private let client: any APIClientProtocol
     private let rewardedLoader = RewardedAdLoader()
 
@@ -47,6 +54,48 @@ final class DailyFortuneViewModel {
         ) {
             tomorrowSnapshot = DailyFortuneSnapshot(dto: dto)
         }
+    }
+
+    /// 오늘의 자세한 풀이 로드 (사용자 #2 프롬프트 형식). 캐시되어 있으면 skip.
+    func loadTodayDetail() async {
+        guard todayDetail == nil else { return }
+        guard snapshot != nil else { return }   // 사주 프로필 + 오늘 운세 먼저
+        isLoadingDetail = true
+        detailError = nil
+        let dayPillar = DailyFortuneEngine.dayPillarString()
+        do {
+            let content = try await client.fetchDailyDetail(
+                dayPillarOfDate: dayPillar,
+                forDate: nil,
+                isTomorrow: false
+            )
+            todayDetail = content
+        } catch {
+            Crashlytics.crashlytics().record(error: error)
+            detailError = error.localizedDescription
+        }
+        isLoadingDetail = false
+    }
+
+    /// 내일의 자세한 풀이 로드. 캐시되어 있으면 skip.
+    func loadTomorrowDetail() async {
+        guard tomorrowDetail == nil else { return }
+        isLoadingDetail = true
+        detailError = nil
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        let dayPillar = DailyFortuneEngine.dayPillarString(for: tomorrow)
+        do {
+            let content = try await client.fetchDailyDetail(
+                dayPillarOfDate: dayPillar,
+                forDate: tomorrow,
+                isTomorrow: true
+            )
+            tomorrowDetail = content
+        } catch {
+            Crashlytics.crashlytics().record(error: error)
+            detailError = error.localizedDescription
+        }
+        isLoadingDetail = false
     }
 
     /// PRO: 즉시 loadTomorrow. 무료: 광고 시청 → reward → loadTomorrow.

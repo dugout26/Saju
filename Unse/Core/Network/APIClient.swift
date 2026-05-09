@@ -39,6 +39,30 @@ actor APIClient {
         return try JSONDecoder().decode(DailyFortuneDTO.self, from: data)
     }
 
+    // MARK: - Daily Detail (자세한 일별 운세 — 사용자가 "자세히 보기" 누를 때만 호출)
+
+    func fetchDailyDetail(dayPillarOfDate: String, forDate: Date? = nil, isTomorrow: Bool = false) async throws -> String {
+        struct Body: Encodable {
+            let day_pillar_of_date: String
+            let for_date: String?
+            let is_tomorrow: Bool
+        }
+        let dateStr: String? = forDate.map {
+            let f = ISO8601DateFormatter()
+            f.formatOptions = [.withFullDate]
+            return f.string(from: $0)
+        }
+        var request = try await makeRequest(endpoint: .dailyDetail)
+        request.httpBody = try JSONEncoder().encode(Body(
+            day_pillar_of_date: dayPillarOfDate,
+            for_date: dateStr,
+            is_tomorrow: isTomorrow
+        ))
+        let (data, _) = try await sendWithRetry(request)
+        struct Resp: Decodable { let content: String }
+        return try JSONDecoder().decode(Resp.self, from: data).content
+    }
+
     // MARK: - Chat (Server-Sent Events streaming)
 
     func chatStream(messages: [[String: String]]) -> AsyncThrowingStream<String, Error> {

@@ -39,3 +39,5 @@ fastlane/README.md
 supabase/.env*
 supabase/.temp/
 supabase/.branches/
+.claude/
+Unse.xcodeproj/

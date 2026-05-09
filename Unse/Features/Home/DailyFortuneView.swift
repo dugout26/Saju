@@ -12,6 +12,7 @@ struct DailyFortuneView: View {
     @State private var showTimeline = false
     @State private var showShare = false
     @State private var showPaywall = false
+    @State private var showTodayDetail = false
 
     private var nickname: String { user?.nickname ?? "사용자" }
     private var hasSajuProfile: Bool { user?.sajuProfile != nil }
@@ -84,8 +85,25 @@ struct DailyFortuneView: View {
         .navigationDestination(isPresented: $showTimeline) { TimelineView(user: user) }
         .sheet(isPresented: $showShare) { ShareCardView(theme: theme, nickname: nickname) }
         .sheet(isPresented: $showPaywall) { PaywallView().environment(sub) }
+        .sheet(isPresented: $showTodayDetail) {
+            DailyDetailSheet(
+                title: "오늘의 자세한 운세",
+                theme: theme,
+                content: vm.todayDetail,
+                isLoading: vm.isLoadingDetail,
+                error: vm.detailError,
+                retry: { Task { await vm.loadTodayDetail() } }
+            )
+            .task { await vm.loadTodayDetail() }
+        }
         .sheet(item: Bindable(vm).tomorrowSnapshot) { snap in
-            TomorrowFortuneSheet(snapshot: snap)
+            TomorrowFortuneSheet(
+                snapshot: snap,
+                detail: vm.tomorrowDetail,
+                isLoadingDetail: vm.isLoadingDetail,
+                detailError: vm.detailError,
+                loadDetail: { Task { await vm.loadTomorrowDetail() } }
+            )
         }
     }
 
@@ -255,9 +273,10 @@ struct DailyFortuneView: View {
 
     private func ctaButtons(theme: FortuneTheme) -> some View {
         VStack(spacing: 8) {
-            PrimaryButton(title: "AI에게 더 자세히 물어보기", color: theme.accent) {
-                showChat = true
+            PrimaryButton(title: "오늘 운세 자세히 보기", color: theme.accent) {
+                showTodayDetail = true
             }
+            OutlineButton(title: "AI에게 더 자세히 물어보기") { showChat = true }
             HStack(spacing: 8) {
                 OutlineButton(title: "주간 흐름") { showTimeline = true }
                 OutlineButton(title: "내일 미리보기") {
@@ -349,6 +368,10 @@ private struct AIAnalysisLoadingView: View {
 
 private struct TomorrowFortuneSheet: View {
     let snapshot: DailyFortuneSnapshot
+    let detail: String?
+    let isLoadingDetail: Bool
+    let detailError: String?
+    let loadDetail: () -> Void
     @Environment(\.dismiss) private var dismiss
 
     private var tomorrowString: String {
@@ -387,6 +410,10 @@ private struct TomorrowFortuneSheet: View {
                         infoRow(icon: "⚠️", label: "피해야 할 것", value: snapshot.avoid)
                     }
                     .padding(.horizontal, 16)
+
+                    detailSection
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
                 }
                 .padding(.bottom, 24)
             }
@@ -400,6 +427,18 @@ private struct TomorrowFortuneSheet: View {
                         .foregroundStyle(.ink1)
                 }
             }
+            .task { loadDetail() }
+        }
+    }
+
+    @ViewBuilder
+    private var detailSection: some View {
+        if let detail {
+            DetailedReadingCard(content: detail, theme: snapshot.theme)
+        } else if isLoadingDetail {
+            DetailedReadingLoading()
+        } else if let detailError {
+            DetailedReadingError(message: detailError, retry: loadDetail)
         }
     }
 
@@ -418,6 +457,104 @@ private struct TomorrowFortuneSheet: View {
         .padding(.horizontal, 16).padding(.vertical, 12)
         .background(Color.surface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+// MARK: - DailyDetailSheet (오늘 자세 풀이)
+
+private struct DailyDetailSheet: View {
+    let title: String
+    let theme: FortuneTheme
+    let content: String?
+    let isLoading: Bool
+    let error: String?
+    let retry: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    if let content {
+                        DetailedReadingCard(content: content, theme: theme)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 12)
+                    } else if isLoading {
+                        DetailedReadingLoading()
+                            .padding(.top, 80)
+                    } else if let error {
+                        DetailedReadingError(message: error, retry: retry)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 80)
+                    }
+                }
+                .padding(.bottom, 24)
+            }
+            .background(theme.gradient.ignoresSafeArea())
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("닫기") { dismiss() }
+                        .font(.pretendard(15))
+                        .foregroundStyle(.ink1)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - 자세 풀이 공용 컴포넌트
+
+private struct DetailedReadingCard: View {
+    let content: String
+    let theme: FortuneTheme
+
+    var body: some View {
+        Text(content)
+            .font(.pretendard(14))
+            .foregroundStyle(.ink1)
+            .lineSpacing(7)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(20)
+            .background(Color.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+}
+
+private struct DetailedReadingLoading: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+                .tint(.lavenderDeep)
+            Text("자세한 운세를 풀고 있어요")
+                .font(.pretendard(13))
+                .foregroundStyle(.ink3)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+private struct DetailedReadingError: View {
+    let message: String
+    let retry: () -> Void
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Text("운세를 불러오지 못했어요")
+                .font(.pretendard(14))
+                .foregroundStyle(.ink2)
+            Text(message)
+                .font(.pretendard(11))
+                .foregroundStyle(.red.opacity(0.7))
+                .multilineTextAlignment(.center)
+            Button("다시 시도") { retry() }
+                .font(.pretendard(13, .semibold))
+                .foregroundStyle(.lavenderDeep)
+                .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 

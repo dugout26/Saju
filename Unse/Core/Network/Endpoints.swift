@@ -9,6 +9,7 @@ enum Endpoint {
     }()
 
     case dailyFortune
+    case dailyDetail
     case sajuReading
     case chat
     case registerPushToken
@@ -18,6 +19,7 @@ enum Endpoint {
     var url: URL {
         switch self {
         case .dailyFortune:     return Self.base.appending(path: "/functions/v1/daily-fortune")
+        case .dailyDetail:      return Self.base.appending(path: "/functions/v1/daily-detail")
         case .sajuReading:      return Self.base.appending(path: "/functions/v1/saju-reading")
         case .chat:             return Self.base.appending(path: "/functions/v1/chat")
         case .registerPushToken: return Self.base.appending(path: "/functions/v1/register-push-token")
