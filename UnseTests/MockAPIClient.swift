@@ -70,7 +70,7 @@ actor MockAPIClient: APIClientProtocol {
         try result.get()
     }
 
-    func chatStream(messages: [[String: String]]) async -> AsyncThrowingStream<String, Error> {
+    func chatStream(messages: [[String: String]], today: String, dayPillarOfDate: String) async -> AsyncThrowingStream<String, Error> {
         let chunks = chatStreamChunks
         let error = chatStreamError
         return AsyncThrowingStream { continuation in
