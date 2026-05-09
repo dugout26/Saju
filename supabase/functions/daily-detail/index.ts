@@ -59,20 +59,29 @@ async function handler(req: Request): Promise<Response> {
       });
     }
 
-    // 2) 사주 + 사용자 조회
-    const { data: profile } = await supabase
+    // 2) 사주 + 사용자 조회 — 조회 에러는 명시 처리 (DB 장애 vs 데이터 부재 구분)
+    const { data: profile, error: profileError } = await supabase
       .from("saju_profiles")
       .select("year_pillar, month_pillar, day_pillar, hour_pillar, day_master, five_elements_dist, gender")
       .eq("user_id", userId)
       .single();
 
+    if (profileError && profileError.code !== "PGRST116") {
+      // PGRST116 = no rows found (데이터 부재) — 다른 에러는 서버 문제로 분류
+      console.error("[daily-detail] saju_profiles read error:", profileError);
+      return jsonError("운세를 불러오는 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.", 500);
+    }
     if (!profile) return jsonError("Saju profile not found", 404);
 
-    const { data: user } = await supabase
+    const { data: user, error: userError } = await supabase
       .from("users")
       .select("nickname")
       .eq("id", userId)
       .single();
+    if (userError && userError.code !== "PGRST116") {
+      console.error("[daily-detail] users read error:", userError);
+      // 닉네임은 fallback 가능하므로 진행 (return X)
+    }
 
     const saju: SajuContext = {
       yearPillar: profile.year_pillar,
