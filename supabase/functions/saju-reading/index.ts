@@ -22,6 +22,10 @@ import {
   type SajuContext,
 } from "../_shared/openai.ts";
 
+// prompt 또는 maxTokens 변경 시 이 값을 올리면 자동 cache invalidation.
+// 옛 row는 prompt_version < 현재 PROMPT_VERSION → cache miss → 새 호출.
+const PROMPT_VERSION = 2;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jsonError("Method not allowed", 405);
@@ -35,15 +39,15 @@ serve(async (req) => {
     const supabase = getSupabaseClient(req);
     const userId = await getUserId(supabase);
 
-    // 1) 캐시 확인
+    // 1) 캐시 확인 — 현재 PROMPT_VERSION과 일치할 때만 hit
     const { data: cached } = await supabase
       .from("saju_readings")
-      .select("content")
+      .select("content, prompt_version")
       .eq("user_id", userId)
       .eq("stage", stage)
       .maybeSingle();
 
-    if (cached) {
+    if (cached && cached.prompt_version === PROMPT_VERSION) {
       return new Response(JSON.stringify({ content: cached.content }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -92,12 +96,13 @@ serve(async (req) => {
       maxTokens,
     });
 
-    // 4) 저장 (race 조건은 unique constraint로 막힘)
+    // 4) 저장 (race 조건은 unique constraint로 막힘) — 현재 PROMPT_VERSION 함께 저장
     await supabase.from("saju_readings").upsert({
       user_id: userId,
       stage,
       content,
       ai_model_used: model,
+      prompt_version: PROMPT_VERSION,
     }, { onConflict: "user_id,stage" });
 
     return new Response(JSON.stringify({ content }), {
@@ -111,12 +116,12 @@ serve(async (req) => {
 
 function maxTokensForStage(stage: number): number {
   switch (stage) {
-    case 1: return 600;
-    case 2: return 800;
-    case 3: return 800;
-    case 4: return 800;
-    case 5: return 4000;
-    default: return 600;
+    case 1: return 1500;
+    case 2: return 2500;
+    case 3: return 2500;
+    case 4: return 2500;
+    case 5: return 12000;
+    default: return 1500;
   }
 }
 
@@ -129,58 +134,107 @@ function sectionsForStage(stage: number): string {
   switch (stage) {
     case 1:
       return `[이번 풀이 범위 — 1단계: 첫인상]
-1. 사주 글자판 정리 (어떤 글자들로 구성됐고 무슨 뜻인지 짧게)
-2. 음양오행 개수 분석 (오행 강약 한 줄 요약)
-3. 일간의 기본 성향 (한 줄 요약 + 일상어로 풀이)
+1. 사주 글자판 정리
+   - 천간·지지 8글자 각각 무슨 뜻인지 (한자 + 한글 풀이 + 자연 비유)
+   - 표 또는 정렬된 형태로
+2. 음양오행 개수 분석
+   - 천간/지지/합산 개수
+   - 강한 오행 약한 오행 일상어로
+3. 일간의 기본 성향
+   - 한 줄 요약 → 자세한 풀이
+   - 일상에서 드러나는 모습 3~5개 예시
 
-[분량] 전체 200~300자. 짧고 핵심만.`;
+각 항목 "한 줄 요약 → 자세한 설명 + 일상 예시" 형식.
+자연 비유 활용 (예: 큰 나무, 흐르는 물 등).
+충분히 자세하게 작성.`;
 
     case 2:
       return `[이번 풀이 범위 — 2단계: 구조와 성격]
-4. 사주의 전체 구조와 격국 (한 줄 + 풀이)
-5. 일간의 강약 분석 (월령·통근·지장간 흐름은 결론만 일상어로)
+4. 사주의 전체 구조와 격국
+5. 일간의 강약 분석 (월령·통근·지장간 흐름은 결론만 일상어로 — 왜 강한지/약한지 자연 비유로)
 6. 용신/희신/기신 판단
-   - 용신(균형을 맞춰주는 핵심 기운)
+   - 용신(균형을 맞춰주는 핵심 기운) — 왜 이게 용신인지 흐름 설명
    - 희신(용신을 도와주는 좋은 기운)
    - 기신(과하면 균형을 깨는 부담 기운)
-7. 성격과 기질 (강점, 약점, 일상에서 드러나는 모습)
+7. 성격과 기질
+   - 강점 (구체적 일상 예시 5개+)
+   - 약점 (구체적 일상 예시 5개+)
+   - 인간관계에서 나타나는 모습
 
-[분량] 전체 400~500자. 자연 비유 활용.`;
+각 섹션 "한 줄 요약 → 자세한 설명 + 일상 예시" 형식.
+자연 비유 활용. 충분히 자세하게.`;
 
     case 3:
       return `[이번 풀이 범위 — 3단계: 관계]
-8. 인간관계 성향 (사람들과 어울리는 패턴)
-9. 가족운 (부모·형제 관계 경향)
-10. 연애·결혼운 (만남의 패턴, 장기 관계에서의 모습)
+8. 인간관계 성향
+   - 사람과 어울리는 패턴
+   - 강점·약점 일상 예시 4~6개
+9. 가족운
+   - 부모·형제와의 관계 경향
+   - 가까운 사람 다루는 방식
+   - 정서적 거리 조절 포인트
+10. 연애·결혼운
+   - 끌리는 사람의 유형 (사주 글자 근거로)
+   - 연애에서 나타나는 모습 5~7개
+   - 장기 관계에서 조심할 점
+   - 좋은 관계의 조건
 
-각 섹션 "한 줄 요약 → 일상어 풀이". 단정·예언 금지, 경향 중심.
-
-[분량] 전체 400~500자.`;
+각 섹션 "한 줄 요약 → 자세한 풀이 + 일상 예시" 형식.
+단정·예언 금지, 경향 중심. 충분히 자세하게.`;
 
     case 4:
       return `[이번 풀이 범위 — 4단계: 일·돈·건강]
-11. 일/직업운 (잘 맞는 일의 방식, 환경)
-12. 돈/재물운 (돈을 버는 방식, 모으는 방식, 조심할 점)
-13. 건강적으로 조심할 부분 (의료 단정 금지, 생활 습관 차원에서 경향만)
+11. 일/직업운
+   - 잘 맞는 일의 방식 (분석/기획/표현 등)
+   - 잘 맞는 업종·직무 6개+ (구체적으로)
+   - 피하면 좋은 환경
+   - 직장형/프리랜서/사업형 적합도
+12. 돈/재물운
+   - 사주에서 돈의 글자 위치와 의미
+   - 돈을 버는 방식의 특징
+   - 돈을 모으는 데 유리한/불리한 패턴
+   - 충동소비·투자·계약·대출 조심할 점
+   - 안정적 수입 구조 만드는 방향
+13. 건강적으로 조심할 부분
+   - 사주 오행에서 약한 부위/장기 경향 (의료 단정 금지, 생활 습관 차원)
+   - 컨디션 관리 일상 팁
 
-각 섹션 "한 줄 요약 → 자세한 설명".
-
-[분량] 전체 400~500자.`;
+각 섹션 "한 줄 요약 → 자세한 설명 + 구체적 예시" 형식.
+충분히 자세하게.`;
 
     case 5:
       return `[이번 풀이 범위 — 5단계: 평생운 종합]
-지금까지 분석한 내용을 바탕으로 평생 흐름을 정리합니다.
+지금까지 분석한 내용을 바탕으로 평생 흐름을 자세히 정리합니다.
+이 단계는 PRO 사용자가 가장 비중 있게 보는 영역이므로 깊이 있게 작성하세요.
 
-14. 대운 흐름 (10년 단위로 어떤 기운이 들어오는지)
-15. 앞으로 10년의 흐름 (가장 가까운 대운 + 세운 변화)
-16. 조심해야 할 시기 (특정 기간을 단정하지 말고 경향과 활용법으로)
+14. 대운(大運) 흐름
+    - 8개 대운(약 80년)을 모두 표 형태로 정리:
+      | 나이대 | 간지 | 핵심 의미 |
+    - 현재 진입한 대운 자세히 풀이 (왜 중요, 좋은 흐름 5개+, 주의할 흐름 5개+)
+    - 다음 대운 자세히 풀이 (어떻게 다른지, 무슨 변화가 오는지)
+
+15. 앞으로 10년의 흐름
+    - 향후 5~7개 해를 연도별로:
+      "20XX년 (간지) — 어떤 기운인지 → 좋은 활용법 / 조심할 점"
+    - 각 해마다 자세히 (200~400자씩)
+
+16. 조심해야 할 시기
+    - 위 10년 안에서 특히 조심해야 할 해 2~3개
+    - 왜 조심해야 하는지 사주 글자 작용으로 설명
+    - 대처 방향
+
 17. 잘 활용하면 좋은 시기
-18. 현실적인 조언 (생활 차원, 마음가짐)
+    - 위 10년 안에서 활용하기 좋은 해 2~3개
+    - 어떤 영역에서 어떻게 쓰면 좋은지
 
-마지막에 평생을 관통하는 한 줄 격려.
+18. 현실적인 조언
+    - 생활 습관 / 마음가짐 / 인간관계 / 일하는 방식
+    - 사주 균형을 맞추는 일상적 보완 (색·환경·습관 — 단정 X, 상징적 보완)
 
-[분량] 전체 1500~2000자. 자세하게. 자연 비유 활용.
-[형식] 각 섹션은 "한 줄 요약 → 자세한 설명" 순서.`;
+마지막에 "이 사주의 좋은 사용법" 정리 + 평생을 관통하는 격려 문단.
+
+[형식] 각 섹션은 "한 줄 요약 → 자세한 설명 + 구체적 예시 + 자연 비유" 순서.
+충분히 자세하게 풀어쓰기. 두루뭉술 금지.`;
 
     default:
       return "";
