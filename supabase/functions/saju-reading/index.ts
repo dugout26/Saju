@@ -114,6 +114,11 @@ serve(async (req) => {
   }
 });
 
+/**
+ * 단계별 OpenAI max_tokens 매핑.
+ * stage 5(평생운)는 8개 대운 + 시기별 N개 해 자세한 풀이 위해 12000.
+ * stage 1~4는 mini라 토큰 비용 부담 적어 cap 풀어 깊이 끌어냄.
+ */
 function maxTokensForStage(stage: number): number {
   switch (stage) {
     case 1: return 1500;
@@ -125,11 +130,19 @@ function maxTokensForStage(stage: number): number {
   }
 }
 
+/**
+ * stage별 user message 조립: 사주 컨텍스트 prefix + 이번 단계 요청 사항.
+ * 사주 컨텍스트는 같은 user의 여러 stage 호출에서 동일 → OpenAI prompt caching prefix로 작용.
+ */
 function buildUserMessage(stage: number, saju: SajuContext): string {
   const ctx = buildSajuContextBlock(saju);
   return ctx + sectionsForStage(stage);
 }
 
+/**
+ * 자평명리 평생운 18단계를 5개 stage로 분할한 요청 섹션.
+ * stage 1~4는 mini로 짧고 빠르게, stage 5는 4o로 자세히. 각 stage는 일상 예시·자연 비유 활용 명시.
+ */
 function sectionsForStage(stage: number): string {
   switch (stage) {
     case 1:
