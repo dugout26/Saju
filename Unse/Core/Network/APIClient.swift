@@ -65,12 +65,12 @@ actor APIClient {
 
     // MARK: - Chat (Server-Sent Events streaming)
 
-    func chatStream(messages: [[String: String]]) -> AsyncThrowingStream<String, Error> {
+    func chatStream(messages: [[String: String]], today: String, dayPillarOfDate: String) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
                     var request = try await makeRequest(endpoint: .chat)
-                    let body = ChatRequestBody(messages: messages)
+                    let body = ChatRequestBody(messages: messages, today: today, day_pillar_of_date: dayPillarOfDate)
                     request.httpBody = try JSONEncoder().encode(body)
 
                     let (bytes, response) = try await session.bytes(for: request)
@@ -232,6 +232,8 @@ struct DailyFortuneDTO: Decodable {
 
 struct ChatRequestBody: Encodable {
     let messages: [[String: String]]
+    let today: String                  // "YYYY-MM-DD" KST
+    let day_pillar_of_date: String     // 오늘 일진 간지
 }
 
 struct SajuReadingDTO: Decodable {

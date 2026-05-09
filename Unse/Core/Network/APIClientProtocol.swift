@@ -13,7 +13,7 @@ protocol APIClientProtocol: Sendable {
     func fetchSajuReading(stage: Int, saju: SajuComputed, nickname: String) async throws -> String
     func fetchAppConfig() async throws -> AppConfigDTO
     func registerPushToken(_ token: String, userId: String) async throws
-    func chatStream(messages: [[String: String]]) async -> AsyncThrowingStream<String, Error>
+    func chatStream(messages: [[String: String]], today: String, dayPillarOfDate: String) async -> AsyncThrowingStream<String, Error>
 }
 
 extension APIClient: APIClientProtocol {}

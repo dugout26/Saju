@@ -21,7 +21,12 @@ serve(async (req) => {
   if (req.method !== "POST") return jsonError("Method not allowed", 405);
 
   try {
-    const { messages } = await req.json() as { messages: ChatMessage[] };
+    const body = await req.json() as {
+      messages: ChatMessage[];
+      today?: string;            // "YYYY-MM-DD" KST
+      day_pillar_of_date?: string;
+    };
+    const messages = body.messages;
     if (!Array.isArray(messages) || messages.length === 0) {
       return jsonError("messages required", 400);
     }
@@ -79,8 +84,19 @@ serve(async (req) => {
       nickname: userInfo?.nickname ?? undefined,
     };
 
-    // 챗봇은 BASE 프롬프트 + 챗봇 전용 추가 가이드 (대화 톤, 길이)
+    // 오늘 날짜·일진 컨텍스트. 클라이언트가 만세력으로 계산해서 전송 (LLM이 학습 cutoff
+    // 이후 시점이라 자체적으로 모름). 누락 시 fallback (UTC → KST 단순 변환만).
+    const todayStr = body.today ?? new Date(Date.now() + 9 * 3600_000).toISOString().split("T")[0];
+    const dayPillar = body.day_pillar_of_date ?? "(클라이언트 미전송)";
+
+    // 챗봇은 BASE 프롬프트 + 챗봇 전용 추가 가이드 (대화 톤, 길이) + 오늘 컨텍스트
     const systemPrompt = BASE_SYSTEM_PROMPT + `
+
+[오늘 컨텍스트]
+- 오늘 날짜: ${todayStr} (한국 표준시)
+- 오늘 일진(日辰): ${dayPillar}
+- "오늘", "현재", "최근", "지금" 같은 시간 표현은 위 날짜 기준으로 해석하세요.
+- 오늘 운세 질문은 위 일진과 사용자 사주(일간) 사이의 십신 관계로 풀이하세요.
 
 [챗봇 전용 톤]
 - 대화체로 친근하게.

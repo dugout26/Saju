@@ -72,7 +72,16 @@ final class ChatViewModel {
             let storageMessages = messages.dropLast().map { msg in
                 ["role": msg.role == .user ? "user" : "assistant", "content": msg.text]
             }
-            for try await delta in await client.chatStream(messages: Array(storageMessages)) {
+            // 오늘 날짜·일진을 매 호출에 주입 (LLM이 학습 cutoff 이후 시점이라 자체적으로 모름)
+            // 해외 사용자도 KST 기준으로 일관되게 계산되도록 timezone 명시.
+            let kstTZ = TimeZone(identifier: "Asia/Seoul")
+            let today = Self.todayKSTString()
+            let dayPillar = DailyFortuneEngine.dayPillarString(timeZone: kstTZ)
+            for try await delta in await client.chatStream(
+                messages: Array(storageMessages),
+                today: today,
+                dayPillarOfDate: dayPillar
+            ) {
                 assistantBubble.text += delta
                 messages[idx] = assistantBubble
             }
@@ -84,6 +93,18 @@ final class ChatViewModel {
 
     func useSuggestion(_ text: String) {
         inputText = text
+    }
+
+    /// "YYYY-MM-DD" — 한국 표준시 기준 (KST = UTC+9). LLM에 오늘 날짜 컨텍스트 주입용.
+    private static func todayKSTString() -> String {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
+        let f = DateFormatter()
+        f.calendar = cal
+        f.timeZone = cal.timeZone
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: Date())
     }
 }
 
