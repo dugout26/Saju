@@ -11,6 +11,7 @@ final class DailyFortuneViewModel {
     var snapshot: DailyFortuneSnapshot?
     var tomorrowSnapshot: DailyFortuneSnapshot?
     var isLoading = true
+    var isLoadingTomorrow = false   // 내일 미리보기 중복 클릭 차단
     var loadError: String?
 
     /// 오늘 자세 풀이 (사용자 #2 형식). nil이면 미로드, 빈 문자열이면 로딩 중.
@@ -101,9 +102,17 @@ final class DailyFortuneViewModel {
     /// PRO: 즉시 loadTomorrow. 무료: 광고 시청 → reward → loadTomorrow.
     /// load fail / 광고 미수신 시 1.5s fallback. ChatViewModel.sendGated와 동일 패턴.
     /// hasGranted 플래그로 reward + fallback 이중 trigger 방지.
+    /// 중복 클릭 차단: tomorrowSnapshot 이미 있거나 진행 중이면 즉시 return.
     func loadTomorrowGated(isPremium: Bool) {
+        guard tomorrowSnapshot == nil, !isLoadingTomorrow else { return }
+        isLoadingTomorrow = true
+
+        let onDone: @MainActor () -> Void = { [weak self] in
+            self?.isLoadingTomorrow = false
+        }
+
         if isPremium {
-            Task { await loadTomorrow() }
+            Task { await loadTomorrow(); onDone() }
             return
         }
 
@@ -111,12 +120,54 @@ final class DailyFortuneViewModel {
         let grant: @MainActor () -> Void = { [weak self] in
             guard let self, !hasGranted else { return }
             hasGranted = true
-            Task { await self.loadTomorrow() }
+            Task { await self.loadTomorrow(); onDone() }
         }
         rewardedLoader.loadAndShow(unitId: AdsManager.rewardedUnitId) { grant() }
         Task {
-            // task cancel 시 sleep throw — try?로 묵살하면 if !granted 분기가 즉시 진행되는
-            // race가 있어 do/catch return으로 cleanup.
+            do {
+                try await Task.sleep(for: .seconds(1.5))
+            } catch {
+                return
+            }
+            grant()
+        }
+    }
+
+    /// 오늘 자세 풀이 광고 게이팅. PRO: 즉시. Free: 광고 → reward → loadTodayDetail.
+    /// 메모리 cache (todayDetail) hit 시 광고 X — 같은 sheet 재진입 시 즉시.
+    func loadTodayDetailGated(isPremium: Bool) {
+        guard todayDetail == nil, !isLoadingDetail else { return }
+        if isPremium {
+            Task { await loadTodayDetail() }
+            return
+        }
+        gatedDetailLoad { [weak self] in
+            await self?.loadTodayDetail()
+        }
+    }
+
+    /// 내일 자세 풀이 광고 게이팅. 같은 패턴.
+    func loadTomorrowDetailGated(isPremium: Bool) {
+        guard tomorrowDetail == nil, !isLoadingDetail else { return }
+        if isPremium {
+            Task { await loadTomorrowDetail() }
+            return
+        }
+        gatedDetailLoad { [weak self] in
+            await self?.loadTomorrowDetail()
+        }
+    }
+
+    /// 광고 reward 또는 1.5s fallback 후 detail load 클로저 실행. hasGranted로 이중 trigger 방지.
+    private func gatedDetailLoad(_ load: @escaping @Sendable @MainActor () async -> Void) {
+        var hasGranted = false
+        let grant: @MainActor () -> Void = { @MainActor in
+            guard !hasGranted else { return }
+            hasGranted = true
+            Task { await load() }
+        }
+        rewardedLoader.loadAndShow(unitId: AdsManager.rewardedUnitId) { grant() }
+        Task {
             do {
                 try await Task.sleep(for: .seconds(1.5))
             } catch {

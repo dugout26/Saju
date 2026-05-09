@@ -92,9 +92,9 @@ struct DailyFortuneView: View {
                 content: vm.todayDetail,
                 isLoading: vm.isLoadingDetail,
                 error: vm.detailError,
-                retry: { Task { await vm.loadTodayDetail() } }
+                isPremium: sub.isPremium,
+                retry: { vm.loadTodayDetailGated(isPremium: sub.isPremium) }
             )
-            .task { await vm.loadTodayDetail() }
         }
         .sheet(item: Bindable(vm).tomorrowSnapshot) { snap in
             TomorrowFortuneSheet(
@@ -102,7 +102,8 @@ struct DailyFortuneView: View {
                 detail: vm.tomorrowDetail,
                 isLoadingDetail: vm.isLoadingDetail,
                 detailError: vm.detailError,
-                loadDetail: { Task { await vm.loadTomorrowDetail() } }
+                isPremium: sub.isPremium,
+                loadDetail: { vm.loadTomorrowDetailGated(isPremium: sub.isPremium) }
             )
         }
     }
@@ -366,6 +367,7 @@ private struct TomorrowFortuneSheet: View {
     let detail: String?
     let isLoadingDetail: Bool
     let detailError: String?
+    let isPremium: Bool
     let loadDetail: () -> Void
     @Environment(\.dismiss) private var dismiss
 
@@ -422,10 +424,11 @@ private struct TomorrowFortuneSheet: View {
                         .foregroundStyle(.ink1)
                 }
             }
-            .task { loadDetail() }
         }
     }
 
+    /// detail이 nil이고 미로딩이면 "자세히 보기" CTA 노출 (PRO 즉시 / 무료 광고 게이팅).
+    /// 사용자가 명시 액션해야 detail 호출 — 자동 로드로 인한 비용·지연 제거.
     @ViewBuilder
     private var detailSection: some View {
         if let detail {
@@ -434,6 +437,11 @@ private struct TomorrowFortuneSheet: View {
             DetailedReadingLoading()
         } else if let detailError {
             DetailedReadingError(message: detailError, retry: loadDetail)
+        } else {
+            PrimaryButton(
+                title: isPremium ? "내일 운세 자세히 보기" : "광고 보고 자세히 보기",
+                color: snapshot.theme.accent
+            ) { loadDetail() }
         }
     }
 
@@ -463,6 +471,7 @@ private struct DailyDetailSheet: View {
     let content: String?
     let isLoading: Bool
     let error: String?
+    let isPremium: Bool
     let retry: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -482,6 +491,19 @@ private struct DailyDetailSheet: View {
                         DetailedReadingError(message: error, retry: retry)
                             .padding(.horizontal, 16)
                             .padding(.top, 80)
+                    } else {
+                        // CTA — 자동 호출 X. 사용자 액션으로 광고/호출 trigger.
+                        VStack(spacing: 12) {
+                            Text("일/돈/연애/컨디션 등 영역별 자세한 풀이")
+                                .font(.pretendard(13))
+                                .foregroundStyle(.ink2)
+                            PrimaryButton(
+                                title: isPremium ? "자세히 보기" : "광고 보고 자세히 보기",
+                                color: theme.accent
+                            ) { retry() }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 60)
                     }
                 }
                 .padding(.bottom, 24)
