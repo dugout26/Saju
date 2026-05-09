@@ -26,7 +26,12 @@ import {
 // 옛 row는 prompt_version < 현재 PROMPT_VERSION → cache miss → 새 호출.
 const PROMPT_VERSION = 2;
 
-serve(async (req) => {
+/**
+ * HTTP handler — saju-reading endpoint.
+ * 흐름: stage 검증 → 캐시 확인(prompt_version 일치) → 사주·사용자 조회 → OpenAI 호출 → 저장.
+ * 캐시 hit 시 즉시 반환, miss 시 stage별 모델·max_tokens로 호출 후 saju_readings에 upsert.
+ */
+async function handler(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jsonError("Method not allowed", 405);
 
@@ -112,7 +117,9 @@ serve(async (req) => {
     console.error("[saju-reading] unexpected error:", e);
     return jsonError("풀이를 불러오는 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.", 500);
   }
-});
+}
+
+serve(handler);
 
 /**
  * 단계별 OpenAI max_tokens 매핑.
