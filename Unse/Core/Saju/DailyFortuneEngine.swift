@@ -9,8 +9,11 @@ import Foundation
 enum DailyFortuneEngine {
 
     /// 주어진 날짜의 일진(day pillar) 문자열. 예: "庚午"
-    static func dayPillarString(for date: Date = Date()) -> String {
-        let cal = Calendar.current
+    /// - Parameter timeZone: year/month/day 추출 기준 타임존. nil이면 시스템 TZ.
+    ///   해외 사용자 대상 일관성 확보를 위해 KST 강제하려면 `TimeZone(identifier: "Asia/Seoul")` 전달.
+    static func dayPillarString(for date: Date = Date(), timeZone: TimeZone? = nil) -> String {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = timeZone ?? .current
         let comps = cal.dateComponents([.year, .month, .day], from: date)
         let pillar = Manse.calculate(
             year: comps.year  ?? 2026,
