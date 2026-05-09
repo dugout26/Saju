@@ -41,3 +41,6 @@ supabase/.temp/
 supabase/.branches/
 .claude/
 Unse.xcodeproj/
+
+# fastlane / ASC credentials (절대 커밋 X)
+secrets/
