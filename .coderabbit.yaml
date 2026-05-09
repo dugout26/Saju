@@ -15,6 +15,12 @@ reviews:
     enabled: true
     drafts: false
 
+  # 1인 프로젝트 + 한국어 자연어 docstring 활용 → CodeRabbit의 JSDoc 형식 detector가
+  # 정확히 인식 안 함. strict 80% threshold는 비실용적이라 비활성.
+  pre_merge_checks:
+    docstring_coverage:
+      mode: off
+
   path_filters:
     - "!**/*.xcodeproj/**"
     - "!**/.build/**"
