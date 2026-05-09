@@ -45,12 +45,17 @@ async function handler(req: Request): Promise<Response> {
     const userId = await getUserId(supabase);
 
     // 1) 캐시 확인 — 현재 PROMPT_VERSION과 일치할 때만 hit
-    const { data: cached } = await supabase
+    const { data: cached, error: cachedError } = await supabase
       .from("saju_readings")
       .select("content, prompt_version")
       .eq("user_id", userId)
       .eq("stage", stage)
       .maybeSingle();
+
+    if (cachedError) {
+      console.error("[saju-reading] cache read error:", cachedError);
+      return jsonError("풀이를 불러오는 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.", 500);
+    }
 
     if (cached && cached.prompt_version === PROMPT_VERSION) {
       return new Response(JSON.stringify({ content: cached.content }), {
@@ -101,14 +106,19 @@ async function handler(req: Request): Promise<Response> {
       maxTokens,
     });
 
-    // 4) 저장 (race 조건은 unique constraint로 막힘) — 현재 PROMPT_VERSION 함께 저장
-    await supabase.from("saju_readings").upsert({
+    // 4) 저장 (race 조건은 unique constraint로 막힘) — 현재 PROMPT_VERSION 함께 저장.
+    //    저장 실패해도 사용자에겐 응답 반환 (재방문 시 다시 호출됨). 로깅만.
+    const { error: upsertError } = await supabase.from("saju_readings").upsert({
       user_id: userId,
       stage,
       content,
       ai_model_used: model,
       prompt_version: PROMPT_VERSION,
     }, { onConflict: "user_id,stage" });
+
+    if (upsertError) {
+      console.error("[saju-reading] cache upsert error:", upsertError);
+    }
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -149,8 +159,11 @@ function buildUserMessage(stage: number, saju: SajuContext): string {
 /**
  * 자평명리 평생운 18단계를 5개 stage로 분할한 요청 섹션.
  * stage 1~4는 mini로 짧고 빠르게, stage 5는 4o로 자세히. 각 stage는 일상 예시·자연 비유 활용 명시.
+ * stage 5의 "앞으로 10년 흐름"엔 현재 연도 기준 범위를 동적으로 주입(20XX 플레이스홀더 방지).
  */
 function sectionsForStage(stage: number): string {
+  const currentYear = new Date().getFullYear();
+  const yearRangeEnd = currentYear + 6;
   switch (stage) {
     case 1:
       return `[이번 풀이 범위 — 1단계: 첫인상]
@@ -234,9 +247,10 @@ function sectionsForStage(stage: number): string {
     - 다음 대운 자세히 풀이 (어떻게 다른지, 무슨 변화가 오는지)
 
 15. 앞으로 10년의 흐름
-    - 향후 5~7개 해를 연도별로:
-      "20XX년 (간지) — 어떤 기운인지 → 좋은 활용법 / 조심할 점"
-    - 각 해마다 자세히 (200~400자씩)
+    - ${currentYear}년부터 ${yearRangeEnd}년까지 5~7개 해를 골라 연도별로:
+      "예: ${currentYear}년 (간지) — 어떤 기운인지 → 좋은 활용법 / 조심할 점"
+      "예: ${currentYear + 1}년 (간지) — ..."
+    - 각 해마다 자세히 (200~400자씩). 반드시 실제 연도 명시 (플레이스홀더 X).
 
 16. 조심해야 할 시기
     - 위 10년 안에서 특히 조심해야 할 해 2~3개
