@@ -6,8 +6,17 @@ import UIKit
 
 @MainActor
 enum AdsManager {
+    // DEBUG: Google 공식 테스트 광고 단위 ID (publisher 3940256099942544 = Google sandbox).
+    //        실제 광고 단위로 디버그 빌드에서 호출 시 'no fill' + 정책 위반으로 계정 정지 위험.
+    //        https://developers.google.com/admob/ios/test-ads
+    // RELEASE: 실제 광고 단위 ID (publisher 6728704748176389 = 사용자 본인).
+    #if DEBUG
+    static let bannerUnitId   = "ca-app-pub-3940256099942544/2934735716"
+    static let rewardedUnitId = "ca-app-pub-3940256099942544/1712485313"
+    #else
     static let bannerUnitId   = "ca-app-pub-6728704748176389/8622581309"
     static let rewardedUnitId = "ca-app-pub-6728704748176389/8918094770"
+    #endif
 
     /// 앱 시작 시 1회 호출.
     static func start() {
