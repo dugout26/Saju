@@ -14,6 +14,12 @@ final class AnalyzingViewModel {
     var errorMessage: String?
     var computedResult: (saju: SajuComputed, daeWoon: [DaeWoon])?
 
+    private let client: any APIClientProtocol
+
+    init(client: any APIClientProtocol = APIClient.shared) {
+        self.client = client
+    }
+
     /// 사주 계산 + 저장 + 풀이 prefetch + 완료 콜백 orchestration.
     /// - stepCount: View가 보여줄 step 수 (animation tick 횟수)
     /// - stepDelay/finalDelay: View가 step별/최종 일시 정지 시간
@@ -58,7 +64,11 @@ final class AnalyzingViewModel {
         }
 
         // 풀이 prefetch (background, 결과 무시 — caching 만 됨)
-        OnboardingService.prefetchReadings(saju: result.saju, nickname: birthVM.input.nickname)
+        OnboardingService.prefetchReadings(
+            saju: result.saju,
+            nickname: birthVM.input.nickname,
+            client: client
+        )
 
         // 마지막 pause — cancel 시 onComplete 호출 안 함 (view 이미 dismiss됨)
         do {

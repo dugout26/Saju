@@ -48,10 +48,15 @@ enum OnboardingService {
 
     /// stage 1·2 풀이 background prefetch. 결과 무시 — saju_readings에 캐시되므로
     /// SajuResultView 진입 시 자동 hit. 호출 실패 무시.
-    static func prefetchReadings(saju: SajuComputed, nickname: String) {
+    /// client 파라미터는 테스트에서 mock 주입용.
+    static func prefetchReadings(
+        saju: SajuComputed,
+        nickname: String,
+        client: any APIClientProtocol = APIClient.shared
+    ) {
         Task.detached {
-            async let s1 = APIClient.shared.fetchSajuReading(stage: 1, saju: saju, nickname: nickname)
-            async let s2 = APIClient.shared.fetchSajuReading(stage: 2, saju: saju, nickname: nickname)
+            async let s1 = client.fetchSajuReading(stage: 1, saju: saju, nickname: nickname)
+            async let s2 = client.fetchSajuReading(stage: 2, saju: saju, nickname: nickname)
             _ = try? await (s1, s2)
         }
     }
