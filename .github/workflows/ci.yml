@@ -87,3 +87,13 @@ jobs:
             -scheme Unse \
             -destination "platform=iOS Simulator,name=${IOS_SIMULATOR_DEVICE},OS=${IOS_SIMULATOR_OS}" \
             -skipPackagePluginValidation
+
+      # Edge Function (Deno) 단위 테스트 — dayPillar, deriveAction 등 pure function.
+      # OPENAI/Supabase 키 의존 부분은 skip (이 step은 pure logic만).
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Edge Functions tests (Deno)
+        run: deno test --no-check supabase/functions/
