@@ -79,24 +79,8 @@ serve(async (req) => {
       .single();
     const nickname = user?.nickname ?? "사용자";
 
-    // 2-b) 최근 7일 lucky_color_secondary history — LLM 색 다양성 강제용.
-    //      [weekAgo, targetDate) 범위 — 캐시 miss path라 오늘 row는 미존재이므로
-    //      lt(targetDate)로 상한 처리 (yesterdayStr 별도 계산 불필요).
-    const targetDateObj = new Date(`${targetDate}T00:00:00Z`);
-    const weekAgo = new Date(targetDateObj.getTime() - 7 * 86400_000);
-    const weekAgoStr = weekAgo.toISOString().split("T")[0];
-    const { data: recentRows } = await supabase
-      .from("daily_fortunes")
-      .select("lucky_color_secondary")
-      .eq("user_id", userId)
-      .gte("date", weekAgoStr)
-      .lt("date", targetDate);
-    const recentColors = (recentRows ?? [])
-      .map((r: { lucky_color_secondary: string | null }) => r.lucky_color_secondary)
-      .filter((c): c is string => !!c);
-
     // 3) OpenAI JSON mode
-    const ai = await callOpenAI(profile, body.day_pillar_of_date, nickname, recentColors);
+    const ai = await callOpenAI(profile, body.day_pillar_of_date, nickname);
 
     // 4) DB upsert
     const row = {
@@ -148,7 +132,6 @@ async function callOpenAI(
   profile: any,
   dayPillar: string,
   nickname: string,
-  recentColors: string[] = [],
 ): Promise<AIResponse> {
   const systemPrompt = `당신은 자평명리(子平命理) 정통 방식의 운세 해설가입니다.
 
@@ -162,13 +145,24 @@ async function callOpenAI(
 3. 위 분석으로 오늘의 luckyElement(보충하면 좋은 오행)를 정한다.
 4. luckyElement에 어울리는 색을 표준 5색에만 갇히지 말고 다양한 톤으로 제시.
 
-[색 다양성 — 매우 중요]
-- 木(나무) 계열: 민트, 세이지, 모스 그린, 올리브, 에메랄드, 라임, 포레스트, 청록 등
-- 火(불) 계열: 코랄, 피치, 살구, 적벽돌, 핑크, 마젠타, 토마토, 와인 등
-- 土(흙) 계열: 베이지, 크림, 모카, 카멜, 머스타드, 황토, 초콜릿, 샌드 등
-- 金(쇠) 계열: 라벤더, 모브, 실버, 펄, 화이트, 아이보리, 그레이, 플래티넘 등
-- 水(물) 계열: 인디고, 네이비, 미드나잇 블루, 코발트, 사파이어, 블랙, 다크 차콜 등
-- 같은 사용자라도 매일 일진이 달라지므로 매일 다른 색을 제시할 것.
+[색 — luckyElement × 음양에 따라 톤 결정 (음양오행 정통)]
+luckyElement를 도출한 후, 톤은 **오늘 일진의 천간(天干) 음양**으로 결정합니다.
+일진 천간이 甲·丙·戊·庚·壬이면 양(陽) 톤, 乙·丁·己·辛·癸이면 음(陰) 톤.
+같은 五行 안에서도 음양에 따라 톤이 다릅니다.
+
+- 木 양(陽): 라임, 에메랄드, 청록, 잔디 그린, 비리디안 (밝고 생기 있는 톤)
+- 木 음(陰): 모스 그린, 포레스트, 세이지, 다크 올리브 (어둡고 차분한 톤)
+- 火 양(陽): 토마토, 코랄, 살구, 핫 핑크, 선셋 오렌지 (밝고 강한 톤)
+- 火 음(陰): 와인, 마룬, 적벽돌, 다크 레드, 버건디 (깊은 톤)
+- 土 양(陽): 카멜, 머스타드, 황토, 골든 옐로, 샌드 (밝은 갈색)
+- 土 음(陰): 모카, 초콜릿, 다크 베이지, 토프 (깊은 갈색)
+- 金 양(陽): 화이트, 펄, 실버, 아이보리, 플래티넘 (밝은 톤)
+- 金 음(陰): 라벤더, 모브, 그레이, 차콜 그레이, 다크 모브 (음 톤)
+- 水 양(陽): 코발트, 인디고, 네이비, 사파이어, 로열 블루 (밝은 청)
+- 水 음(陰): 미드나잇 블루, 블랙, 다크 차콜, 슬레이트 (깊은 톤)
+
+같은 luckyElement가 반복돼도 음양 톤이 달라 색이 자연스럽게 변동됩니다. 매일 일진이
+다르므로 음양 성질도 미세히 달라집니다.
 
 [lucky_color_theme — 디자인 시스템 매핑]
 앱 UI는 4가지 톤만 지원: lavender(보라/회색/검정/네이비 차가운 톤), peach(주황/빨강/핑크 따뜻한 톤), mint(초록/청록/올리브), cream(노랑/베이지/갈색).
@@ -207,11 +201,6 @@ lucky_color_name이 어느 톤에 가장 가까운지 lucky_color_theme에 표�
   "avoid": "구체적 행동 한 줄"
 }`;
 
-  // 비어있을 때도 기존 blank line 보존 — 원본 prompt 포맷 유지 (Surgical).
-  const recentColorsLine = recentColors.length > 0
-    ? `\n[최근 7일 사용된 색 — 반드시 이 색들과 다른 색 제시]\n${recentColors.join(", ")}\n`
-    : "\n";
-
   const userMessage = `[사주 원국]
 - 일간: ${profile.day_master}
 - 시주: ${profile.hour_pillar ?? "미상"}
@@ -222,7 +211,7 @@ lucky_color_name이 어느 톤에 가장 가까운지 lucky_color_theme에 표�
 
 [오늘의 일진]
 ${dayPillar}
-${recentColorsLine}
+
 ${nickname}님의 오늘 운세를 위 JSON 형식으로 출력하세요.`;
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
