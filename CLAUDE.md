@@ -324,37 +324,56 @@ UnseTests/        — Phase A Step 1에서 분리 예정
 ## 8. 진행 단계 (현재 위치 추적)
 
 ### Phase A — 회사컴 (백엔드 의존 0) ✅ **완료**
-1. ✅ 만세력 테스트 타겟 분리 + 부록 B 케이스 통과 (11 tests PASS)
+1. ✅ 만세력 테스트 타겟 분리 + 부록 B 케이스 통과
 2. ✅ `SajuProfile → SajuComputed/DaeWoon` reconstruction (round-trip 검증)
-3. ⏸ 온보딩→만세력→SwiftData→사주탭 end-to-end (사용자 직접 시뮬 검증 보류)
-4. ✅ 매일 운세 규칙기반 계산 (8 engine tests + UI 동적 렌더링)
-5. ✅ AI 호출 인터페이스 정의 + DEBUG mock (`APIClient.fetchSajuReading`)
+3. ⏸ 온보딩→만세력→SwiftData→사주탭 end-to-end (시뮬 검증은 사용자 작업 — Phase 4 실기기 Release 검증과 함께)
+4. ✅ 매일 운세 규칙기반 계산 + UI 동적 렌더링
+5. ✅ AI 호출 인터페이스 정의 + DEBUG mock
 
-총 19 tests PASS. iOS 앱 단독으로 작동.
+### Phase B — 백엔드 통합 ✅ **완료**
+6. ✅ Supabase 프로젝트 + DB schema (migrations 0001~0007)
+7. ✅ Edge Functions: chat (SSE) / daily-fortune / daily-detail / saju-reading / send-push / kakao-auth / verify-receipt / asn-v2-webhook
+8. ✅ Endpoints base URL 셋업
+9. ✅ 카카오/애플 로그인 → Supabase auth
+10. ✅ 매일 운세 cron (`0007_daily_push_cron.sql` — pg_cron + Vault) + APNs 발송 (FCM 경유)
+11. ✅ Mock → 실제 호출 전환 완료
 
-### Phase B — 개인컴 이전 후 ← **다음 위치**
+### Phase 1 — 출시 블로커 ✅ **완료**
+- ✅ PrivacyInfo.xcprivacy 제출 (#7)
+- ✅ ATT (App Tracking Transparency) 적용 (#8)
+- ✅ Crashlytics + 8개 catch 블록 record(error:) (#9)
+- ✅ StoreKit 2 영수증 서버 검증 + JWT(ES256) (#10) + ASN v2 webhook
 
-**시작 전 체크리스트** (개인컴에서):
-- [ ] git pull (회사컴 마지막 commit 확인)
-- [ ] xcodegen 설치 확인 (`brew install xcodegen`)
-- [ ] swiftlint 설치 확인 (`brew install swiftlint`)
-- [ ] `xcodebuild test -scheme Unse -destination 'platform=iOS Simulator,name=iPhone 17'` 통과 확인
-- [ ] OpenAI API key 발급 (서버용)
-- [ ] Supabase 계정 + 프로젝트 생성
+### Phase 2 — 안정성 / 모니터링 ✅ **완료**
+- ✅ CI 복원 (host app SIGABRT 가드) + pure 도메인 테스트 19건
+- ✅ Crashlytics explicit record + APIClient retry/backoff
 
-**Phase B 작업 순서**:
-6. Supabase 프로젝트 + DB schema (기획서 6장 그대로)
-7. Edge Function: OpenAI proxy (사주 풀이 1·2단계, 매일 운세 한 줄, 챗봇 SSE)
-8. [Endpoints.swift:4](Unse/Core/Network/Endpoints.swift:4)의 `base` URL → 실제 Supabase URL로 교체 → `APIClient`의 mock 자동 비활성
-9. 카카오/애플 로그인 → Supabase auth 연동
-10. 매일 운세 cron (Supabase scheduled function) + APNs 발송 큐
-11. SajuResultView/DailyFortuneView의 `TODO(Phase B):` 주석 자리에서 mock → 실제 호출 전환
+### Phase 3 — UX / 인프라 ✅ **완료**
+- ✅ Firebase Performance + Analytics
+- ✅ 다크모드 + Dynamic Type
+- ✅ APIClientProtocol DI + Mock
+- ✅ fastlane TestFlight + App Store lanes + Gemfile
+- ✅ daily-detail feature + 새 saju reading depth
+- ✅ KAKAO_APP_KEY xcconfig 외부화
+- ✅ SPM 캐싱 (CI 단축)
+- ✅ 54 tests pass (ViewModel + 도메인 + ad gating)
+- ✅ RewardedAdPresenting protocol (광고 게이팅 testable)
+- ✅ AnalyzingViewModel testability (OnboardingService DI)
 
-### Phase C — 출시 직전
-12. StoreKit 실제 product + 영수증 서버 검증
-13. AdMob + 카카오 애드핏
-14. 약관·개인정보처리방침·면책
-15. TestFlight 베타 50명
+### Phase 4 — 출시 직전 ← **다음 위치**
+다음 작업은 모두 **사용자 환경 의존** (코드 외):
+- [ ] StoreKit production product 등록 (App Store Connect)
+- [ ] AdMob production unit ID 발급 + 교체 (현재 DEBUG는 Google 테스트 ID)
+- [ ] 카카오 애드핏 (선택)
+- [ ] 약관 / 개인정보처리방침 / 면책 작성
+- [ ] App Store 메타데이터 (스크린샷 6.7"/6.1"/5.5" / 키워드 / 설명)
+- [ ] TestFlight 베타 50명 초대
+- [ ] Supabase secrets 등록 (`ASC_PRIVATE_KEY/KEY_ID/ISSUER_ID`)
+- [ ] pg_cron + pg_net + Vault secret 등록 후 0007 migration 적용
+- [ ] App Store Connect ASN v2 URL 등록
+- [ ] 실기기 + Release 빌드 검증 (CLAUDE.md §6 4개 시나리오)
+
+**HANDOFF.md** — 환경별 secrets 보유 상태 + Phase 4 deferred 작업 표 참조.
 
 ---
 
@@ -362,7 +381,7 @@ UnseTests/        — Phase A Step 1에서 분리 예정
 
 - [ ] Karpathy 4원칙 적용했는가? (특히 Surgical, Simplicity)
 - [ ] 코드 변경했으면 `xcodebuild` 검증했는가?
-- [ ] 백엔드 의존 작업을 Phase B 전에 시도하지 않았는가?
+- [ ] 새 ViewModel / 도메인 함수 / Edge function 추가 시 같은 PR에 단위 테스트 포함했는가?
 - [ ] 새 의존성 추가 전 사용자에게 물었는가?
 - [ ] 시크릿(키·토큰) 코드에 박지 않았는가?
 - [ ] 디자인 토큰 우회해서 hex 직접 박지 않았는가?
