@@ -50,6 +50,7 @@ struct LoginView: View {
                 // unused
             }
             .signInWithAppleButtonStyle(.black)
+            .frame(maxWidth: .infinity)
             .frame(height: 52)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay {
