@@ -116,8 +116,8 @@ struct ChatViewModelTests {
         vm.inputText = "무료 질문"
         vm.sendGated(isPremium: false)
 
-        // grant() 호출 후 Task { await send() } 스폰. 메시지 누적 위해 짧게 대기.
-        try await Task.sleep(for: .milliseconds(100))
-        #expect(!vm.isWatchingAd)
+        // grant() 호출 후 isWatchingAd 해제될 때까지 폴링 (flaky 회피).
+        let cleared = try await waitUntil { !vm.isWatchingAd }
+        #expect(cleared)
     }
 }

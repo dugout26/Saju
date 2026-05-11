@@ -139,10 +139,10 @@ struct DailyFortuneViewModelTests {
         let vm = DailyFortuneViewModel(client: mock, rewardedLoader: loader)
 
         vm.loadTomorrowGated(isPremium: true)
-        try await Task.sleep(for: .milliseconds(50))
+        let done = try await waitUntil { vm.tomorrowSnapshot != nil }
 
+        #expect(done)
         #expect(loader.loadCallCount == 0)
-        #expect(vm.tomorrowSnapshot != nil)
         #expect(!vm.isLoadingTomorrow)
     }
 
@@ -155,10 +155,10 @@ struct DailyFortuneViewModelTests {
         let vm = DailyFortuneViewModel(client: mock, rewardedLoader: loader)
 
         vm.loadTomorrowGated(isPremium: false)
-        try await Task.sleep(for: .milliseconds(50))
+        let done = try await waitUntil { vm.tomorrowSnapshot != nil }
 
+        #expect(done)
         #expect(loader.loadCallCount == 1)
-        #expect(vm.tomorrowSnapshot != nil)
         #expect(!vm.isLoadingTomorrow)
     }
 
@@ -172,8 +172,9 @@ struct DailyFortuneViewModelTests {
         await vm.loadFortune(hasSajuProfile: true)
 
         vm.loadTodayDetailGated(isPremium: true)
-        try await Task.sleep(for: .milliseconds(50))
+        let done = try await waitUntil { vm.todayDetail != nil }
 
+        #expect(done)
         #expect(loader.loadCallCount == 0)
         #expect(vm.todayDetail == "today detail")
     }
@@ -187,8 +188,9 @@ struct DailyFortuneViewModelTests {
         let vm = DailyFortuneViewModel(client: mock, rewardedLoader: loader)
 
         vm.loadTomorrowDetailGated(isPremium: false)
-        try await Task.sleep(for: .milliseconds(50))
+        let done = try await waitUntil { vm.tomorrowDetail != nil }
 
+        #expect(done)
         #expect(loader.loadCallCount == 1)
         #expect(vm.tomorrowDetail == "tomorrow detail")
     }

@@ -17,3 +17,15 @@ final class MockRewardedLoader: RewardedAdPresenting {
         }
     }
 }
+
+/// 조건이 참이 될 때까지 짧게 폴링 (Task.yield + 10ms sleep). 비결정적 시간 의존 제거.
+/// timeoutMs 안에 만족 안 되면 false. 기본 timeout 500ms — CI 부하 여유.
+@MainActor
+func waitUntil(timeoutMs: Int = 500, _ condition: () -> Bool) async throws -> Bool {
+    let deadline = Date().addingTimeInterval(Double(timeoutMs) / 1000.0)
+    while Date() < deadline {
+        if condition() { return true }
+        try await Task.sleep(for: .milliseconds(10))
+    }
+    return condition()
+}
