@@ -28,22 +28,12 @@ serve(async (req) => {
   if (req.method !== "POST") return jsonError("Method not allowed", 405);
 
   try {
-    // 인증 — JWT decode로 role=service_role 확인 (Supabase가 새 key 형식 mix 가능)
+    // 인증 — SUPABASE_SERVICE_ROLE_KEY 직접 비교. JWT decode로 role 확인은 payload
+    // 위조 가능 (signature 미검증)이라 보안 취약. 토큰 자체 비교만 신뢰.
     const auth = req.headers.get("Authorization") ?? "";
     const token = auth.replace(/^Bearer\s+/i, "").trim();
-    let isAuthorized = false;
-    try {
-      const parts = token.split(".");
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-        isAuthorized = payload.role === "service_role";
-      }
-    } catch { /* fall through */ }
-    if (!isAuthorized) {
-      // Fallback: SUPABASE_SERVICE_ROLE_KEY env var 직접 비교
-      const sk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-      isAuthorized = sk.length > 0 && token === sk;
-    }
+    const sk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const isAuthorized = sk.length > 0 && token === sk;
     if (!isAuthorized) return jsonError("Unauthorized — service_role required", 401);
 
     const body = await req.json() as RequestBody;

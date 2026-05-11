@@ -29,16 +29,12 @@ serve(async (req) => {
     if (!body.day_pillar_of_date) return jsonError("day_pillar_of_date required", 400);
 
     // 인증 분기 — service_role이면 user_id 받음, 일반 user JWT는 getUserId.
+    // JWT decode로 role 확인은 payload 위조 가능 (signature 미검증). 따라서
+    // service_role은 SUPABASE_SERVICE_ROLE_KEY와 직접 비교.
     const auth = req.headers.get("Authorization") ?? "";
     const token = auth.replace(/^Bearer\s+/i, "").trim();
-    let isServiceRole = false;
-    try {
-      const parts = token.split(".");
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-        isServiceRole = payload.role === "service_role";
-      }
-    } catch { /* fall through */ }
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const isServiceRole = serviceRoleKey.length > 0 && token === serviceRoleKey;
 
     let userId: string;
     let supabase;
