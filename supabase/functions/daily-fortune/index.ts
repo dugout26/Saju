@@ -79,19 +79,18 @@ serve(async (req) => {
       .single();
     const nickname = user?.nickname ?? "사용자";
 
-    // 2-b) 최근 7일 lucky_color_name history — LLM 색 다양성 강제용.
-    //      날짜 BETWEEN today-7 AND today-1 (오늘 row는 아직 없음 = 캐시 miss path).
+    // 2-b) 최근 7일 lucky_color_secondary history — LLM 색 다양성 강제용.
+    //      [weekAgo, targetDate) 범위 — 캐시 miss path라 오늘 row는 미존재이므로
+    //      lt(targetDate)로 상한 처리 (yesterdayStr 별도 계산 불필요).
     const targetDateObj = new Date(`${targetDate}T00:00:00Z`);
     const weekAgo = new Date(targetDateObj.getTime() - 7 * 86400_000);
     const weekAgoStr = weekAgo.toISOString().split("T")[0];
-    const yesterdayObj = new Date(targetDateObj.getTime() - 86400_000);
-    const yesterdayStr = yesterdayObj.toISOString().split("T")[0];
     const { data: recentRows } = await supabase
       .from("daily_fortunes")
       .select("lucky_color_secondary")
       .eq("user_id", userId)
       .gte("date", weekAgoStr)
-      .lte("date", yesterdayStr);
+      .lt("date", targetDate);
     const recentColors = (recentRows ?? [])
       .map((r: { lucky_color_secondary: string | null }) => r.lucky_color_secondary)
       .filter((c): c is string => !!c);
@@ -208,9 +207,10 @@ lucky_color_name이 어느 톤에 가장 가까운지 lucky_color_theme에 표�
   "avoid": "구체적 행동 한 줄"
 }`;
 
+  // 비어있을 때도 기존 blank line 보존 — 원본 prompt 포맷 유지 (Surgical).
   const recentColorsLine = recentColors.length > 0
     ? `\n[최근 7일 사용된 색 — 반드시 이 색들과 다른 색 제시]\n${recentColors.join(", ")}\n`
-    : "";
+    : "\n";
 
   const userMessage = `[사주 원국]
 - 일간: ${profile.day_master}
