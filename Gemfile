@@ -4,4 +4,6 @@ source "https://rubygems.org"
 # 사용:
 #   bundle install
 #   bundle exec fastlane beta | release | bump
-gem "fastlane", "~> 2.227"
+#
+# 버전 제약: ~> 2.230 → >= 2.230, < 3.0. 정확 버전은 Gemfile.lock에 고정.
+gem "fastlane", "~> 2.230"
