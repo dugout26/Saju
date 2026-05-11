@@ -33,15 +33,15 @@
     <key>SUPABASE_ANON_KEY</key>
     <string>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxja2hndm5ka3ZtcHFnbWNxYWVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1MTU2ODEsImV4cCI6MjA5MzA5MTY4MX0.StOjJJWbVrKcHa4SfTsAJd_r5p_VGjcsuJWM2EyY09w</string>
 
-    <!-- Kakao SDK -->
+    <!-- Kakao SDK — 실제 키는 Config.local.xcconfig (gitignored). -->
     <key>KAKAO_APP_KEY</key>
-    <string>ef72425518601ca347d305a9f3ba14a5</string>
+    <string>$(KAKAO_APP_KEY)</string>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>
             <key>CFBundleURLSchemes</key>
             <array>
-                <string>kakaoef72425518601ca347d305a9f3ba14a5</string>
+                <string>kakao$(KAKAO_APP_KEY)</string>
             </array>
         </dict>
     </array>

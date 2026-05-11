@@ -27,6 +27,12 @@ settings:
     DEVELOPMENT_TEAM: 63HCVR9YH2
     CODE_SIGN_STYLE: Automatic
 
+# 빌드 변수 — KAKAO_APP_KEY 등은 Config.example.xcconfig가 진입점.
+# Config.local.xcconfig가 있으면 optional include로 override (gitignored).
+configFiles:
+  Debug: Config.example.xcconfig
+  Release: Config.example.xcconfig
+
 targets:
   Unse:
     type: application

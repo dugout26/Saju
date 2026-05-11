@@ -1,0 +1,15 @@
+// Config.example.xcconfig — 빌드 변수 기본값 (tracked).
+//
+// 로컬 개발 환경에서 실제 비밀 키를 사용하려면:
+//   cp Config.example.xcconfig Config.local.xcconfig
+//   # Config.local.xcconfig 안에서 KAKAO_APP_KEY를 본인 키로 채움
+//
+// Config.local.xcconfig는 gitignored. Config.example.xcconfig가 그 파일을
+// optional include 하므로 존재 시 자동 override.
+//
+// CI 환경에서는 Config.local.xcconfig가 없어도 빌드 진행. KAKAO_APP_KEY가 빈 값이면
+// UnseApp.swift의 KakaoSDK.initSDK 가드가 skip 처리 (테스트/빌드 검증에 영향 없음).
+
+KAKAO_APP_KEY =
+
+#include? "Config.local.xcconfig"
