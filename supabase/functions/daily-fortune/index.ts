@@ -79,8 +79,25 @@ serve(async (req) => {
       .single();
     const nickname = user?.nickname ?? "사용자";
 
+    // 2-b) 최근 7일 lucky_color_name history — LLM 색 다양성 강제용.
+    //      날짜 BETWEEN today-7 AND today-1 (오늘 row는 아직 없음 = 캐시 miss path).
+    const targetDateObj = new Date(`${targetDate}T00:00:00Z`);
+    const weekAgo = new Date(targetDateObj.getTime() - 7 * 86400_000);
+    const weekAgoStr = weekAgo.toISOString().split("T")[0];
+    const yesterdayObj = new Date(targetDateObj.getTime() - 86400_000);
+    const yesterdayStr = yesterdayObj.toISOString().split("T")[0];
+    const { data: recentRows } = await supabase
+      .from("daily_fortunes")
+      .select("lucky_color_secondary")
+      .eq("user_id", userId)
+      .gte("date", weekAgoStr)
+      .lte("date", yesterdayStr);
+    const recentColors = (recentRows ?? [])
+      .map((r: { lucky_color_secondary: string | null }) => r.lucky_color_secondary)
+      .filter((c): c is string => !!c);
+
     // 3) OpenAI JSON mode
-    const ai = await callOpenAI(profile, body.day_pillar_of_date, nickname);
+    const ai = await callOpenAI(profile, body.day_pillar_of_date, nickname, recentColors);
 
     // 4) DB upsert
     const row = {
@@ -128,7 +145,12 @@ interface AIResponse {
   avoid: string;
 }
 
-async function callOpenAI(profile: any, dayPillar: string, nickname: string): Promise<AIResponse> {
+async function callOpenAI(
+  profile: any,
+  dayPillar: string,
+  nickname: string,
+  recentColors: string[] = [],
+): Promise<AIResponse> {
   const systemPrompt = `당신은 자평명리(子平命理) 정통 방식의 운세 해설가입니다.
 
 [중요 지시사항]
@@ -186,6 +208,10 @@ lucky_color_name이 어느 톤에 가장 가까운지 lucky_color_theme에 표�
   "avoid": "구체적 행동 한 줄"
 }`;
 
+  const recentColorsLine = recentColors.length > 0
+    ? `\n[최근 7일 사용된 색 — 반드시 이 색들과 다른 색 제시]\n${recentColors.join(", ")}\n`
+    : "";
+
   const userMessage = `[사주 원국]
 - 일간: ${profile.day_master}
 - 시주: ${profile.hour_pillar ?? "미상"}
@@ -196,7 +222,7 @@ lucky_color_name이 어느 톤에 가장 가까운지 lucky_color_theme에 표�
 
 [오늘의 일진]
 ${dayPillar}
-
+${recentColorsLine}
 ${nickname}님의 오늘 운세를 위 JSON 형식으로 출력하세요.`;
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
