@@ -27,6 +27,8 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { create as createJWT } from "https://deno.land/x/djwt@v3.0.2/mod.ts";
 import { corsHeaders, jsonError } from "../_shared/cors.ts";
+// deriveAction은 단위 테스트를 위해 별도 파일로 분리.
+import { deriveAction, type DBAction } from "./deriveAction.ts";
 
 interface RequestBody { signedPayload: string; }
 
@@ -169,19 +171,6 @@ async function fetchTrustedTransaction(
   return { kind: "ok", payload };
 }
 
-type DBAction = "activate" | "cancel";
-
-// trusted transaction state → DB action.
-// revocationDate 있으면 환불/회수, expiresDate 지났으면 만료 → cancel.
-// 그 외 → activate (premium).
-function deriveAction(tx: TransactionPayload): DBAction {
-  if (tx.revocationDate) return "cancel";
-  // auto-renewable subscription은 expiresDate 필수. 누락된 trusted tx는 비정상 →
-  // activate 분기에서 400으로 폐기되면 Apple retry 안 함. 여기서 cancel로 분류.
-  if (!tx.expiresDate) return "cancel";
-  if (tx.expiresDate <= Date.now()) return "cancel";
-  return "activate";
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
