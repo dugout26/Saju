@@ -2,11 +2,13 @@
 // 자평명리 일간 ↔ 일진 십신 관계와 충·형·합·회 작용으로 매일 다른 결과 생성.
 //
 // POST /functions/v1/daily-fortune
-// Authorization: Bearer <user JWT>
-// body: { day_pillar_of_date: string }   // 클라이언트가 만세력으로 계산
+// 두 가지 호출 모드:
+//   1. user JWT — body: { day_pillar_of_date, for_date? }. 클라이언트 흐름.
+//   2. service_role JWT — body: { day_pillar_of_date, for_date?, user_id }. cron pregenerate 흐름.
 // response: DailyFortuneDTO
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders, jsonError } from "../_shared/cors.ts";
 import { getSupabaseClient, getUserId } from "../_shared/auth.ts";
 
@@ -15,6 +17,7 @@ const OPENAI_KEY = Deno.env.get("OPENAI_API_KEY")!;
 interface RequestBody {
   day_pillar_of_date: string;
   for_date?: string;   // "YYYY-MM-DD" — 미지정이면 오늘
+  user_id?: string;    // service_role 호출 시 필수
 }
 
 serve(async (req) => {
@@ -25,8 +28,31 @@ serve(async (req) => {
     const body = await req.json() as RequestBody;
     if (!body.day_pillar_of_date) return jsonError("day_pillar_of_date required", 400);
 
-    const supabase = getSupabaseClient(req);
-    const userId = await getUserId(supabase);
+    // 인증 분기 — service_role이면 user_id 받음, 일반 user JWT는 getUserId.
+    const auth = req.headers.get("Authorization") ?? "";
+    const token = auth.replace(/^Bearer\s+/i, "").trim();
+    let isServiceRole = false;
+    try {
+      const parts = token.split(".");
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+        isServiceRole = payload.role === "service_role";
+      }
+    } catch { /* fall through */ }
+
+    let userId: string;
+    let supabase;
+    if (isServiceRole) {
+      if (!body.user_id) return jsonError("user_id required for service_role", 400);
+      userId = body.user_id;
+      supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+    } else {
+      supabase = getSupabaseClient(req);
+      userId = await getUserId(supabase);
+    }
     const targetDate = body.for_date ?? new Date().toISOString().split("T")[0];
 
     // 1) 캐시 확인
