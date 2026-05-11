@@ -326,7 +326,7 @@ UnseTests/        — Phase A Step 1에서 분리 예정
 ### Phase A — 회사컴 (백엔드 의존 0) ✅ **완료**
 1. ✅ 만세력 테스트 타겟 분리 + 부록 B 케이스 통과
 2. ✅ `SajuProfile → SajuComputed/DaeWoon` reconstruction (round-trip 검증)
-3. ✅ 온보딩→만세력→SwiftData→사주탭 end-to-end
+3. ⏸ 온보딩→만세력→SwiftData→사주탭 end-to-end (시뮬 검증은 사용자 작업 — Phase 4 실기기 Release 검증과 함께)
 4. ✅ 매일 운세 규칙기반 계산 + UI 동적 렌더링
 5. ✅ AI 호출 인터페이스 정의 + DEBUG mock
 
