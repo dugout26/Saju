@@ -89,40 +89,53 @@ async function sendDaily(supabase: any) {
   const hh = nowKst.getUTCHours();
   const mm = nowKst.getUTCMinutes();
 
-  // 현재 윈도우: 정시~30분 또는 30분~정시 (30분 단위)
+  // 현재 윈도우: 정시~30분 또는 30분~정시 (30분 단위).
+  // 23:30~24:00 윈도우는 windowEnd가 자정 넘어가서 push_time 문자열 비교가
+  // 깨짐 ("23:30" < "00:00" false) — 이 경우 gte만 적용 (해당 시간대 전체 매칭).
   const windowStart = mm < 30
     ? `${pad(hh)}:00:00`
     : `${pad(hh)}:30:00`;
-  const windowEnd = mm < 30
+  const windowEnd: string | null = mm < 30
     ? `${pad(hh)}:30:00`
-    : `${pad((hh + 1) % 24)}:00:00`;
+    : hh === 23
+      ? null
+      : `${pad(hh + 1)}:00:00`;
 
-  const { data: users, error } = await supabase
+  let usersQuery = supabase
     .from("users")
     .select("id, nickname, push_token")
     .eq("push_enabled", true)
     .not("push_token", "is", null)
-    .gte("push_time", windowStart)
-    .lt("push_time", windowEnd);
+    .gte("push_time", windowStart);
+  if (windowEnd !== null) {
+    usersQuery = usersQuery.lt("push_time", windowEnd);
+  }
+  const { data: users, error } = await usersQuery;
 
-  if (error || !users) return [];
+  if (error || !users || users.length === 0) return [];
 
   // 오늘 날짜 (KST) — daily_fortunes 캐시 lookup용.
   const todayKst = `${nowKst.getUTCFullYear()}-${pad(nowKst.getUTCMonth() + 1)}-${pad(nowKst.getUTCDate())}`;
 
-  const results = [];
-  for (const user of users) {
-    // 캐시 hit이면 one_liner를 메시지 본문에 포함. miss면 generic.
-    const { data: fortune } = await supabase
-      .from("daily_fortunes")
-      .select("one_liner")
-      .eq("user_id", user.id)
-      .eq("date", todayKst)
-      .maybeSingle();
+  // 배치 lookup: 50명 = 1 SELECT (개별 50 SELECT 대신).
+  const userIds = users.map((u: { id: string }) => u.id);
+  const { data: fortunes } = await supabase
+    .from("daily_fortunes")
+    .select("user_id, one_liner")
+    .in("user_id", userIds)
+    .eq("date", todayKst);
+  const fortuneByUser = new Map<string, string>(
+    (fortunes ?? []).map((f: { user_id: string; one_liner: string }) => [f.user_id, f.one_liner]),
+  );
 
-    const title = "오늘의 운세 도착";
-    const body = fortune?.one_liner
-      ? `☀️ ${user.nickname}님 — ${fortune.one_liner}`
+  const results: Array<{ user_id: string; ok: boolean; status: number }> = [];
+  const logs: Array<{ user_id: string; title: string; body: string }> = [];
+  const title = "오늘의 운세 도착";
+
+  for (const user of users) {
+    const oneLiner = fortuneByUser.get(user.id);
+    const body = oneLiner
+      ? `☀️ ${user.nickname}님 — ${oneLiner}`
       : `☀️ ${user.nickname}님, 오늘의 행운 색과 한 줄 운세를 확인해보세요`;
 
     const result = await sendFCM({
@@ -132,13 +145,14 @@ async function sendDaily(supabase: any) {
       data: { type: "open_daily" },
     });
     results.push({ user_id: user.id, ok: result.ok, status: result.status });
-
-    await supabase.from("push_logs").insert({
-      user_id: user.id,
-      title,
-      body,
-    });
+    logs.push({ user_id: user.id, title, body });
   }
+
+  // 배치 insert: 50명 = 1 INSERT (개별 50 INSERT 대신).
+  if (logs.length > 0) {
+    await supabase.from("push_logs").insert(logs);
+  }
+
   return results;
 }
 
