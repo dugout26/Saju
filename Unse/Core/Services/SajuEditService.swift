@@ -10,6 +10,35 @@ import SwiftData
 @MainActor
 enum SajuEditService {
 
+    /// PRO 사주 변경 cooldown 검사. KST 자정 기준 — "1일 1회"의 사용자 인지와 일치.
+    /// 어제 23시 변경 후 오늘 09시(10h 경과)에 정확 24h 미만이라도 변경 가능해야 자연스러움.
+    /// pure function이라 nonisolated — 테스트에서 MainActor context 없이 호출 가능.
+    /// - returns: true면 오늘 변경 가능. false면 오늘 이미 변경했음.
+    nonisolated static func canEditSajuToday(lastModified: Date, now: Date = Date()) -> Bool {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
+        return cal.startOfDay(for: lastModified) < cal.startOfDay(for: now)
+    }
+
+    /// Free 사주 변경 cooldown 검사. KST 자정 기준 — 30일에 한 번. 출생 정보 실수
+    /// 회복 여지를 주되 PRO 일일 1회와 30배 차이를 둠.
+    /// - returns: (allowed, daysRemaining). allowed=true면 변경 가능, daysRemaining은
+    ///   차단 메시지에 표시할 남은 일수(최소 1).
+    nonisolated static func freeMonthlyEditStatus(lastModified: Date, now: Date = Date()) -> (allowed: Bool, daysRemaining: Int) {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
+        let lastDay = cal.startOfDay(for: lastModified)
+        let today = cal.startOfDay(for: now)
+        guard let allowedDay = cal.date(byAdding: .day, value: 30, to: lastDay) else {
+            // Calendar 연산 실패는 정상 기기에서 발생하지 않음. 방어적으로 허용.
+            assertionFailure("Calendar.date(byAdding:) unexpected failure")
+            return (true, 0)
+        }
+        if today >= allowedDay { return (true, 0) }
+        let daysLeft = cal.dateComponents([.day], from: today, to: allowedDay).day ?? 0
+        return (false, max(1, daysLeft))
+    }
+
     /// 닉네임만 변경 (사주 재계산 X). 로컬 + 원격 동기화. 성공 시 nil throw.
     /// 로컬 저장 실패는 throw, 원격 동기화 실패는 별도 throw (호출자가 메시지 분기).
     static func updateNickname(

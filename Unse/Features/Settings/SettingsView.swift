@@ -103,6 +103,52 @@ struct SettingsView: View {
                 }
             }
             .padding(.vertical, 6)
+
+            // 사주 정보 요약 — 사주 프로필이 있을 때만 표시.
+            if let saju = user?.sajuProfile {
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    profileRow(label: "생년월일", value: Self.birthDateLabel(saju))
+                    profileRow(label: "성별", value: saju.gender)
+                    profileRow(label: "사주", value: Self.eightCharsLabel(saju))
+                }
+                .padding(.vertical, Spacing.xs)
+            }
+        }
+    }
+
+    /// "1996년 3월 15일 (양력) 14:00" 형식. 시각 미입력 시 "시간 미상".
+    private static func birthDateLabel(_ saju: SajuProfile) -> String {
+        let calendarSuffix = saju.birthCalendar == "lunar" ? "음력" : "양력"
+        let dateStr = "\(saju.birthYear)년 \(saju.birthMonth)월 \(saju.birthDay)일 (\(calendarSuffix))"
+        if let h = saju.birthHour {
+            let m = saju.birthMinute ?? 0
+            return dateStr + " \(String(format: "%02d:%02d", h, m))"
+        }
+        return dateStr + " · 시간 미상"
+    }
+
+    /// "丙子 庚寅 戊午 己未" — 사주 8자.
+    private static func eightCharsLabel(_ saju: SajuProfile) -> String {
+        var parts = [
+            "\(saju.yearStem)\(saju.yearBranch)",
+            "\(saju.monthStem)\(saju.monthBranch)",
+            "\(saju.dayStem)\(saju.dayBranch)"
+        ]
+        if let hs = saju.hourStem, let hb = saju.hourBranch {
+            parts.append("\(hs)\(hb)")
+        }
+        return parts.joined(separator: " ")
+    }
+
+    private func profileRow(label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(.pretendard(13))
+                .foregroundStyle(.ink3)
+            Spacer()
+            Text(value)
+                .font(.pretendard(13, .medium))
+                .foregroundStyle(.ink2)
         }
     }
 

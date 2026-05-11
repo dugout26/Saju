@@ -3,7 +3,7 @@ import SwiftData
 import FirebaseCrashlytics
 
 /// 본인 사주 정보 편집. 저장 시 SwiftData + Supabase 양쪽 동기화.
-/// 출생 정보 변경 제한: Free 평생 1회 / PRO 1일 1회. 닉네임만 변경 시엔 무제한.
+/// 출생 정보 변경 제한: Free 30일 1회 / PRO 1일 1회. 닉네임만 변경 시엔 무제한.
 struct EditSajuView: View {
     let user: UserProfile
 
@@ -202,20 +202,24 @@ struct EditSajuView: View {
 
         // 출생 정보 변경 — 권한 체크
         if sub.isPremium {
-            // PRO: 1일 1회 (마지막 변경 후 24h)
+            // PRO: 1일 1회 — KST 자정 기준 (사용자 인지의 "하루"와 일치).
             if let last = user.sajuProfile?.lastModifiedAt,
                user.sajuModifiedCount > 0,
-               Date().timeIntervalSince(last) < 24 * 3600 {
-                limitMessage = "사주 변경은 하루에 한 번만 가능해요. 24시간 후 다시 시도해 주세요."
+               !SajuEditService.canEditSajuToday(lastModified: last) {
+                limitMessage = "사주 변경은 하루에 한 번만 가능해요. 내일 다시 시도해 주세요."
                 showLimitAlert = true
                 return
             }
         } else {
-            // Free: 평생 1회
-            if user.sajuModifiedCount >= 1 {
-                limitMessage = "무료 버전은 더 이상 변경할 수 없습니다.\nPRO로 업그레이드하면 하루 1회 변경 가능해요."
-                showLimitAlert = true
-                return
+            // Free: 30일 1회 — 출생 정보 실수 회복 여지를 주되 PRO와 차별화.
+            if let last = user.sajuProfile?.lastModifiedAt,
+               user.sajuModifiedCount > 0 {
+                let status = SajuEditService.freeMonthlyEditStatus(lastModified: last)
+                if !status.allowed {
+                    limitMessage = "무료 버전은 30일에 한 번 변경 가능해요.\n약 \(status.daysRemaining)일 후 다시 시도해 주세요.\nPRO는 매일 변경 가능합니다."
+                    showLimitAlert = true
+                    return
+                }
             }
         }
 
