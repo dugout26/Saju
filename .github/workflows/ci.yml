@@ -41,6 +41,19 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
+      # SPM 의존성 캐시 — Firebase, Supabase, Kakao SDK의 fetch + compile 산출물 재사용.
+      # cold run에서 1-3분 잡아먹는 dependency resolve/build를 캐시 적중 시 ~10s로 단축.
+      # invalidation key: packages 정의가 있는 project.yml + xcodegen이 갱신하는 Package.resolved.
+      - name: Cache SPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
+          key: spm-${{ runner.os }}-${{ hashFiles('project.yml', 'Unse.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: |
+            spm-${{ runner.os }}-
+
       - name: SwiftLint (strict — warning은 error로 처리)
         run: swiftlint lint --strict
 
