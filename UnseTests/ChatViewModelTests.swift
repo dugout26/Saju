@@ -30,7 +30,10 @@ struct ChatViewModelTests {
 
         vm.inputText = "   "
         await vm.send()
+        #expect(vm.messages.count == initialCount)
 
+        vm.inputText = ""
+        await vm.send()
         #expect(vm.messages.count == initialCount)
         #expect(!vm.isStreaming)
     }
