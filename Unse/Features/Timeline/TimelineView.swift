@@ -5,14 +5,14 @@ struct TimelineView: View {
     var user: UserProfile?
 
     @Environment(SubscriptionManager.self) private var sub
-    @State private var daeWoon: [DaeWoon] = []
-    @State private var selectedDaeWoon: DaeWoon?
-    @State private var showPaywall = false
+    @State private var vm: TimelineViewModel
 
-    private var currentAge: Int {
-        guard let profile = user?.sajuProfile else { return 30 }
-        return Calendar.current.component(.year, from: Date()) - profile.birthYear
+    init(user: UserProfile? = nil) {
+        self.user = user
+        _vm = State(initialValue: TimelineViewModel(user: user))
     }
+
+    private var currentAge: Int { vm.currentAge }
 
     var body: some View {
         ScrollView {
@@ -37,8 +37,7 @@ struct TimelineView: View {
         .background(Color.bg.ignoresSafeArea())
         .navigationTitle("평생 흐름")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { loadDaeWoon() }
-        .sheet(isPresented: $showPaywall) {
+        .sheet(isPresented: $vm.showPaywall) {
             PaywallView().environment(sub)
         }
     }
@@ -57,7 +56,7 @@ struct TimelineView: View {
                 .multilineTextAlignment(.center)
                 .lineSpacing(3)
             PrimaryButton(title: "PRO로 자세히 보기", color: .lavenderDeep) {
-                showPaywall = true
+                vm.showPaywall = true
             }
             .padding(.top, 4)
         }
@@ -92,10 +91,10 @@ struct TimelineView: View {
                     .font(.pretendard(15, .semibold))
                     .foregroundStyle(.ink1)
 
-                if daeWoon.isEmpty {
+                if vm.daeWoon.isEmpty {
                     placeholderChart
                 } else {
-                    DaeWoonChart(daeWoon: daeWoon, currentAge: currentAge)
+                    DaeWoonChart(daeWoon: vm.daeWoon, currentAge: currentAge)
                 }
 
                 HStack(spacing: 16) {
@@ -124,20 +123,20 @@ struct TimelineView: View {
 
     private var decadeList: some View {
         VStack(spacing: 8) {
-            ForEach(daeWoon) { dw in
+            ForEach(vm.daeWoon) { dw in
                 DaeWoonRow(
                     daeWoon: dw,
                     currentAge: currentAge,
-                    isSelected: selectedDaeWoon?.id == dw.id
+                    isSelected: vm.selectedDaeWoon?.id == dw.id
                 )
                 .onTapGesture {
                     withAnimation(.spring(response: 0.3)) {
-                        selectedDaeWoon = selectedDaeWoon?.id == dw.id ? nil : dw
+                        vm.selectedDaeWoon = vm.selectedDaeWoon?.id == dw.id ? nil : dw
                     }
                 }
             }
 
-            if daeWoon.isEmpty {
+            if vm.daeWoon.isEmpty {
                 emptyState
             }
         }
@@ -169,11 +168,6 @@ struct TimelineView: View {
         }
     }
 
-    private func loadDaeWoon() {
-        guard let profile = user?.sajuProfile,
-              let data = profile.daeWoonJSON.data(using: .utf8) else { return }
-        daeWoon = (try? JSONDecoder().decode([DaeWoon].self, from: data)) ?? []
-    }
 }
 
 // MARK: - DaeWoonRow
