@@ -107,21 +107,36 @@ async function sendDaily(supabase: any) {
 
   if (error || !users) return [];
 
+  // 오늘 날짜 (KST) — daily_fortunes 캐시 lookup용.
+  const todayKst = `${nowKst.getUTCFullYear()}-${pad(nowKst.getUTCMonth() + 1)}-${pad(nowKst.getUTCDate())}`;
+
   const results = [];
   for (const user of users) {
+    // 캐시 hit이면 one_liner를 메시지 본문에 포함. miss면 generic.
+    const { data: fortune } = await supabase
+      .from("daily_fortunes")
+      .select("one_liner")
+      .eq("user_id", user.id)
+      .eq("date", todayKst)
+      .maybeSingle();
+
+    const title = "오늘의 운세 도착";
+    const body = fortune?.one_liner
+      ? `☀️ ${user.nickname}님 — ${fortune.one_liner}`
+      : `☀️ ${user.nickname}님, 오늘의 행운 색과 한 줄 운세를 확인해보세요`;
+
     const result = await sendFCM({
       token: user.push_token,
-      title: "오늘의 운세 도착",
-      body: `☀️ ${user.nickname}님, 오늘의 행운 색과 한 줄 운세를 확인해보세요`,
+      title,
+      body,
       data: { type: "open_daily" },
     });
     results.push({ user_id: user.id, ok: result.ok, status: result.status });
 
-    // push_logs 기록
     await supabase.from("push_logs").insert({
       user_id: user.id,
-      title: "오늘의 운세 도착",
-      body: `☀️ ${user.nickname}님, 오늘의 행운 색과 한 줄 운세를 확인해보세요`,
+      title,
+      body,
     });
   }
   return results;
