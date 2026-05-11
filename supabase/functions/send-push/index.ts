@@ -13,6 +13,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders, jsonError } from "../_shared/cors.ts";
 import { sendFCM } from "../_shared/fcm.ts";
+import { dayPillarOfDate } from "../_shared/dayPillar.ts";
 
 interface RequestBody {
   type: "daily" | "update" | "test";
@@ -27,22 +28,12 @@ serve(async (req) => {
   if (req.method !== "POST") return jsonError("Method not allowed", 405);
 
   try {
-    // 인증 — JWT decode로 role=service_role 확인 (Supabase가 새 key 형식 mix 가능)
+    // 인증 — SUPABASE_SERVICE_ROLE_KEY 직접 비교. JWT decode로 role 확인은 payload
+    // 위조 가능 (signature 미검증)이라 보안 취약. 토큰 자체 비교만 신뢰.
     const auth = req.headers.get("Authorization") ?? "";
     const token = auth.replace(/^Bearer\s+/i, "").trim();
-    let isAuthorized = false;
-    try {
-      const parts = token.split(".");
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-        isAuthorized = payload.role === "service_role";
-      }
-    } catch { /* fall through */ }
-    if (!isAuthorized) {
-      // Fallback: SUPABASE_SERVICE_ROLE_KEY env var 직접 비교
-      const sk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-      isAuthorized = sk.length > 0 && token === sk;
-    }
+    const sk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const isAuthorized = sk.length > 0 && token === sk;
     if (!isAuthorized) return jsonError("Unauthorized — service_role required", 401);
 
     const body = await req.json() as RequestBody;
@@ -127,6 +118,36 @@ async function sendDaily(supabase: any) {
   const fortuneByUser = new Map<string, string>(
     (fortunes ?? []).map((f: { user_id: string; one_liner: string }) => [f.user_id, f.one_liner]),
   );
+
+  // 캐시 miss user에 대해 daily-fortune endpoint pregenerate (service_role 분기 호출).
+  // 50명 베타 단계 — Promise.allSettled로 병렬, 실패는 무시 (fallback generic 메시지로 발송).
+  const missUsers = users.filter((u: { id: string }) => !fortuneByUser.has(u.id));
+  if (missUsers.length > 0) {
+    const projectUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const dayPillar = dayPillarOfDate(nowUtc);
+    await Promise.allSettled(
+      missUsers.map(async (u: { id: string }) => {
+        const res = await fetch(`${projectUrl}/functions/v1/daily-fortune`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({
+            day_pillar_of_date: dayPillar,
+            for_date: todayKst,
+            user_id: u.id,
+          }),
+        });
+        if (!res.ok) return;
+        const dto = await res.json();
+        if (typeof dto?.one_liner === "string") {
+          fortuneByUser.set(u.id, dto.one_liner);
+        }
+      }),
+    );
+  }
 
   const results: Array<{ user_id: string; ok: boolean; status: number }> = [];
   const logs: Array<{ user_id: string; title: string; body: string }> = [];
