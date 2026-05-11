@@ -238,4 +238,21 @@ struct DailyFortuneViewModelTests {
         #expect(await mock.dailyFortuneCallCount == firstCount + 1)
         #expect(vm.snapshot?.oneLiner == "두번째 운세")
     }
+
+    @Test("reset() — Gated 진행 중 호출 시 isLoadingTomorrow/Detail도 false로 초기화")
+    func reset_clearsLoadingFlags() async {
+        let mock = MockAPIClient()
+        await mock.setDailyFortune(.success(.fixture()))
+        let loader = MockRewardedLoader()
+        loader.grantsImmediately = false   // reward 지연 → isLoadingTomorrow=true 유지
+        let vm = DailyFortuneViewModel(client: mock, rewardedLoader: loader)
+
+        vm.loadTomorrowGated(isPremium: false)
+        #expect(vm.isLoadingTomorrow)
+
+        vm.reset()
+
+        #expect(!vm.isLoadingTomorrow)
+        #expect(!vm.isLoadingDetail)
+    }
 }

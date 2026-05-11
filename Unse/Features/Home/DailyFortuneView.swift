@@ -50,7 +50,9 @@ struct DailyFortuneView: View {
             .task { await vm.loadFortune(hasSajuProfile: hasSajuProfile) }
             // 사주 정보 변경 시 캐시된 snapshot 폐기 → 새 사주로 재로드.
             // sajuProfile.lastModifiedAt이 SajuEditService.recomputeAndSaveLocally에서 갱신됨.
-            .onChange(of: user?.sajuProfile?.lastModifiedAt) { _, _ in
+            // oldValue nil 가드: user 비동기 로드의 nil→Date 전환에서 .task와 중복 fetch 회피.
+            .onChange(of: user?.sajuProfile?.lastModifiedAt) { oldValue, _ in
+                guard oldValue != nil else { return }
                 vm.reset()
                 Task { await vm.loadFortune(hasSajuProfile: hasSajuProfile) }
             }
