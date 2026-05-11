@@ -33,15 +33,17 @@ xcodegen generate  # project.yml 변경분 반영
 ### 2-2. 사용자(=직접) 작업 필요 — production 배포 전 필수
 다음은 코드 외 사용자가 직접 해야 하는 작업. 모두 deferred 상태:
 
-| 항목 | 우선순위 | 비고 |
-|---|---|---|
-| `GoogleService-Info.plist` 배치 | 🔴 P0 | Firebase Console → 다운로드 → `Unse/` 루트 (gitignored). 부재 시 isRunningTests 가드 외엔 Firebase 미초기화 |
-| App Store Connect API key (`.p8`) | 🔴 P0 | StoreKit verify-receipt + ASN v2 webhook + fastlane 모두 동일 key 사용 |
-| Supabase secrets 설정 | 🔴 P0 | `ASC_PRIVATE_KEY` (PEM 전체), `ASC_KEY_ID`, `ASC_ISSUER_ID`. Supabase Dashboard → Project Settings → Edge Functions → Secrets |
-| Edge Functions 배포 | 🔴 P0 | `supabase functions deploy verify-receipt asn-v2-webhook chat daily-fortune kakao-auth saju-reading send-push` |
-| App Store Connect → ASN v2 URL 등록 | 🟡 P1 | Production/Sandbox 동일 URL: `https://<project>.functions.supabase.co/asn-v2-webhook`, Version 2 |
-| fastlane ENV 설정 | 🟡 P1 | `FASTLANE_APPLE_ID`, `FASTLANE_ITC_TEAM_ID`, `ASC_PRIVATE_KEY_PATH` (.p8 파일 경로) |
-| 실기기 + Release 빌드 검증 | 🔴 P0 | CLAUDE.md §6 "TestFlight / App Store 제출 전 필수" 4개 시나리오 (편집/포그라운드/재실행/장시간) |
+| 항목 | 회사컴 | 집컴 | 우선순위 | 비고 |
+|---|---|---|---|---|
+| `Unse/GoogleService-Info.plist` | ✅ 보유 | (집컴 별도 보유) | 🔴 P0 | 새 환경 셋업 시 Firebase Console에서 다운로드 (gitignored) |
+| App Store Connect API key (`.p8`) | ❌ | (집컴 보유 시 OK) | 🔴 P0 | StoreKit verify-receipt + ASN v2 webhook + fastlane 모두 동일 key. 회사컴에선 배포 안 하면 불필요 |
+| Supabase secrets 설정 | (Dashboard) | (Dashboard) | 🔴 P0 | `ASC_PRIVATE_KEY` (PEM 전체), `ASC_KEY_ID`, `ASC_ISSUER_ID`. Supabase Dashboard → Project Settings → Edge Functions → Secrets |
+| Edge Functions 배포 | (선택) | ✅ 추천 | 🔴 P0 | `supabase functions deploy verify-receipt asn-v2-webhook chat daily-fortune kakao-auth saju-reading send-push daily-detail` |
+| App Store Connect → ASN v2 URL 등록 | — | ✅ | 🟡 P1 | Production/Sandbox 동일 URL: `https://<project>.functions.supabase.co/asn-v2-webhook`, Version 2 |
+| fastlane ENV 설정 | (선택) | ✅ 추천 | 🟡 P1 | `FASTLANE_APPLE_ID`, `FASTLANE_ITC_TEAM_ID`, `ASC_PRIVATE_KEY_PATH` (.p8 파일 경로) |
+| 실기기 + Release 빌드 검증 | (선택) | ✅ 추천 | 🔴 P0 | CLAUDE.md §6 "TestFlight / App Store 제출 전 필수" 4개 시나리오 (편집/포그라운드/재실행/장시간) |
+
+> 이미 회사컴/집컴에 셋업된 secrets는 별도 작업 불필요. 새 컴퓨터에서 시작할 때만 위 표 참조.
 
 ---
 
