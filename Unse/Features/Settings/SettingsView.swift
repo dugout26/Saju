@@ -1,20 +1,17 @@
 import SwiftUI
 import SwiftData
-import FirebaseCrashlytics
 
 struct SettingsView: View {
     var user: UserProfile?
 
     @Environment(\.modelContext) private var modelContext
     @Environment(SubscriptionManager.self) private var sub
-    @State private var showPaywall = false
-    @State private var showDeleteAlert = false
-    @State private var showLogoutAlert = false
-    @State private var logoutError: String?
-    @State private var pushEnabled = false
-    @State private var pushTime = Date()
-    @State private var pushSaveError: String?
-    @State private var deleteError: String?
+    @State private var vm: SettingsViewModel
+
+    init(user: UserProfile? = nil) {
+        self.user = user
+        _vm = State(initialValue: SettingsViewModel(user: user))
+    }
 
     private var nickname: String { user?.nickname ?? "사용자" }
 
@@ -36,47 +33,50 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
             .navigationTitle("설정")
             .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showPaywall) {
+            .sheet(isPresented: $vm.showPaywall) {
                 PaywallView()
                     .environment(sub)
             }
-            .alert("계정 삭제", isPresented: $showDeleteAlert) {
-                Button("삭제", role: .destructive) { deleteAccount() }
+            .alert("계정 삭제", isPresented: $vm.showDeleteAlert) {
+                Button("삭제", role: .destructive) {
+                    vm.deleteAccount(modelContext: modelContext)
+                }
                 Button("취소", role: .cancel) {}
             } message: {
                 Text("모든 데이터가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.")
             }
-            .alert("로그아웃", isPresented: $showLogoutAlert) {
-                Button("로그아웃", role: .destructive) { logout() }
+            .alert("로그아웃", isPresented: $vm.showLogoutAlert) {
+                Button("로그아웃", role: .destructive) {
+                    Task { await vm.logout(modelContext: modelContext) }
+                }
                 Button("취소", role: .cancel) {}
             } message: {
                 Text("로그아웃하면 시작 화면으로 돌아갑니다.")
             }
             .alert("로그아웃 실패", isPresented: Binding(
-                get: { logoutError != nil },
-                set: { if !$0 { logoutError = nil } }
+                get: { vm.logoutError != nil },
+                set: { if !$0 { vm.logoutError = nil } }
             )) {
-                Button("확인") { logoutError = nil }
+                Button("확인") { vm.logoutError = nil }
             } message: {
-                Text(logoutError ?? "")
+                Text(vm.logoutError ?? "")
             }
             .alert("저장 실패", isPresented: Binding(
-                get: { pushSaveError != nil },
-                set: { if !$0 { pushSaveError = nil } }
+                get: { vm.pushSaveError != nil },
+                set: { if !$0 { vm.pushSaveError = nil } }
             )) {
-                Button("확인") { pushSaveError = nil }
+                Button("확인") { vm.pushSaveError = nil }
             } message: {
-                Text(pushSaveError ?? "")
+                Text(vm.pushSaveError ?? "")
             }
             .alert("삭제 실패", isPresented: Binding(
-                get: { deleteError != nil },
-                set: { if !$0 { deleteError = nil } }
+                get: { vm.deleteError != nil },
+                set: { if !$0 { vm.deleteError = nil } }
             )) {
-                Button("확인") { deleteError = nil }
+                Button("확인") { vm.deleteError = nil }
             } message: {
-                Text(deleteError ?? "")
+                Text(vm.deleteError ?? "")
             }
-            .onAppear { loadPushSettings() }
         }
     }
 
@@ -196,7 +196,7 @@ struct SettingsView: View {
                         .foregroundStyle(.ink1)
                 }
             } else {
-                Button { showPaywall = true } label: {
+                Button { vm.showPaywall = true } label: {
                     HStack {
                         Label("PRO로 업그레이드", systemImage: "sparkles")
                             .font(.pretendard(14, .semibold))
@@ -213,25 +213,19 @@ struct SettingsView: View {
 
     private var notificationSection: some View {
         Section(header: Text("알림")) {
-            Toggle(isOn: $pushEnabled) {
+            Toggle(isOn: $vm.pushEnabled) {
                 Label("오늘의 운세 알림", systemImage: "bell")
                     .font(.pretendard(14))
                     .foregroundStyle(.ink1)
             }
             .tint(Color.lavenderDeep)
-            .onChange(of: pushEnabled) { _, newValue in
-                guard let user else { return }
-                do {
-                    try SettingsService.updatePushEnabled(newValue, user: user, modelContext: modelContext)
-                } catch {
-                    Crashlytics.crashlytics().record(error: error)
-                    pushSaveError = "알림 설정 저장 실패. 다시 시도해주세요."
-                }
+            .onChange(of: vm.pushEnabled) { _, newValue in
+                vm.setPushEnabled(newValue, modelContext: modelContext)
             }
 
-            if pushEnabled {
+            if vm.pushEnabled {
                 DatePicker(
-                    selection: $pushTime,
+                    selection: $vm.pushTime,
                     displayedComponents: .hourAndMinute
                 ) {
                     Label("알림 시간", systemImage: "clock")
@@ -239,16 +233,8 @@ struct SettingsView: View {
                         .foregroundStyle(.ink1)
                 }
                 .tint(Color.lavenderDeep)
-                .onChange(of: pushTime) { _, newValue in
-                    guard let user else { return }
-                    do {
-                        try SettingsService.updatePushTime(
-                            newValue, user: user, nickname: nickname, modelContext: modelContext
-                        )
-                    } catch {
-                        Crashlytics.crashlytics().record(error: error)
-                        pushSaveError = "알림 시간 저장 실패. 다시 시도해주세요."
-                    }
+                .onChange(of: vm.pushTime) { _, newValue in
+                    vm.setPushTime(newValue, modelContext: modelContext)
                 }
             }
         }
@@ -307,7 +293,7 @@ struct SettingsView: View {
     private var dangerSection: some View {
         Section {
             Button {
-                showLogoutAlert = true
+                vm.showLogoutAlert = true
             } label: {
                 Label("로그아웃", systemImage: "rectangle.portrait.and.arrow.right")
                     .font(.pretendard(14))
@@ -315,7 +301,7 @@ struct SettingsView: View {
             }
 
             Button(role: .destructive) {
-                showDeleteAlert = true
+                vm.showDeleteAlert = true
             } label: {
                 Label("계정 삭제", systemImage: "trash")
                     .font(.pretendard(14))
@@ -351,40 +337,6 @@ struct SettingsView: View {
                 .font(.pretendard(13))
                 .foregroundStyle(.ink3)
         }
-    }
-
-    private func loadPushSettings() {
-        pushEnabled = user?.pushEnabled ?? false
-        pushTime = user?.pushTime ?? defaultPushTime
-    }
-
-    private func deleteAccount() {
-        guard let user else { return }
-        do {
-            try SettingsService.deleteAccount(user: user, modelContext: modelContext)
-        } catch {
-            Crashlytics.crashlytics().record(error: error)
-            deleteError = "계정 삭제 실패. 다시 시도해주세요.\n(\(error.localizedDescription))"
-        }
-    }
-
-    private func logout() {
-        guard let user else { return }
-        Task { @MainActor in
-            do {
-                try await SettingsService.logout(user: user, modelContext: modelContext)
-            } catch {
-                Crashlytics.crashlytics().record(error: error)
-                logoutError = "로그아웃 실패. 잠시 후 다시 시도해주세요.\n(\(error.localizedDescription))"
-            }
-        }
-    }
-
-    private var defaultPushTime: Date {
-        var comps = DateComponents()
-        comps.hour = 8
-        comps.minute = 0
-        return Calendar.current.date(from: comps) ?? Date()
     }
 
     private var appVersion: String {
