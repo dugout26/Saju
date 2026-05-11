@@ -53,8 +53,10 @@ struct SettingsViewModelTests {
         let vm = SettingsViewModel(user: user)
         #expect(!vm.pushEnabled)
 
-        // Supabase 호출은 test env에서 fail해 pushSaveError가 set될 수 있음 — 로컬 갱신만 검증.
-        await vm.setPushEnabled(true, modelContext: context)
+        // setPushEnabled는 내부 Task를 띄우므로 완료를 대기해야 user 갱신 확인 가능.
+        // Supabase 호출은 test env에서 fail → pushSaveError가 set될 수 있어 로컬 갱신만 검증.
+        vm.setPushEnabled(true, modelContext: context)
+        await vm.pushSyncTask?.value
 
         #expect(vm.pushEnabled)
         #expect(user.pushEnabled)
@@ -67,10 +69,31 @@ struct SettingsViewModelTests {
         let vm = SettingsViewModel(user: user)
         let newTime = Calendar.current.date(from: DateComponents(hour: 10, minute: 30))!
 
-        await vm.setPushTime(newTime, modelContext: context)
+        vm.setPushTime(newTime, modelContext: context)
+        await vm.pushSyncTask?.value
 
         #expect(vm.pushTime == newTime)
         #expect(user.pushTime == newTime)
+    }
+
+    @Test("setPushTime 빠른 연속 호출 → 이전 task 취소되고 마지막 값만 user에 반영")
+    func setPushTime_rapidCalls_cancelsPrevious() async throws {
+        let context = try makeContext()
+        let user = makeUser(context)
+        let vm = SettingsViewModel(user: user)
+        let t1 = Calendar.current.date(from: DateComponents(hour: 9, minute: 0))!
+        let t2 = Calendar.current.date(from: DateComponents(hour: 10, minute: 0))!
+        let t3 = Calendar.current.date(from: DateComponents(hour: 11, minute: 0))!
+
+        vm.setPushTime(t1, modelContext: context)
+        vm.setPushTime(t2, modelContext: context)
+        vm.setPushTime(t3, modelContext: context)
+        await vm.pushSyncTask?.value
+
+        // vm.pushTime은 sync 부분에서 즉시 마지막 값으로 update됨.
+        #expect(vm.pushTime == t3)
+        // user.pushTime은 가장 마지막에 완료된 task 결과여야 함 (t3).
+        #expect(user.pushTime == t3)
     }
 
     @Test("deleteAccount — user 삭제 + deleteError nil")

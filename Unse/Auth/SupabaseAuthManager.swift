@@ -198,12 +198,17 @@ enum SupabaseAuthManager {
     /// `Date` → KST 24h `"HH:mm:ss"`. PostgreSQL `time` 컬럼 포맷.
     /// nonisolated — 테스트에서 직접 호출 가능.
     nonisolated static func kstTimeString(from date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "Asia/Seoul") ?? TimeZone(secondsFromGMT: 9 * 3600)!
-        return formatter.string(from: date)
+        kstTimeFormatter.string(from: date)
     }
+
+    /// 호출마다 DateFormatter 생성 비용을 피하려 static let으로 캐싱. read-only 사용은 thread-safe.
+    private nonisolated static let kstTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "Asia/Seoul") ?? TimeZone(secondsFromGMT: 9 * 3600)!
+        return f
+    }()
 
     // MARK: - Helpers
 

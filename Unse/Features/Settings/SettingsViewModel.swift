@@ -21,6 +21,10 @@ final class SettingsViewModel {
     var showDeleteAlert = false
     var showLogoutAlert = false
 
+    /// TimePicker 빠른 스크롤 시 이전 sync task를 취소해 서버 순서 뒤바뀜 방지.
+    /// 테스트가 완료를 대기할 수 있게 internal로 노출.
+    private(set) var pushSyncTask: Task<Void, Never>?
+
     init(user: UserProfile?) {
         self.user = user
         loadPushSettings()
@@ -33,27 +37,37 @@ final class SettingsViewModel {
 
     // MARK: - 액션
 
-    func setPushEnabled(_ enabled: Bool, modelContext: ModelContext) async {
+    func setPushEnabled(_ enabled: Bool, modelContext: ModelContext) {
         pushEnabled = enabled
         guard let user else { return }
-        do {
-            try await SettingsService.updatePushEnabled(enabled, user: user, modelContext: modelContext)
-        } catch {
-            Crashlytics.crashlytics().record(error: error)
-            pushSaveError = "알림 설정 저장 실패. 다시 시도해주세요."
+        pushSyncTask?.cancel()
+        pushSyncTask = Task { [weak self] in
+            do {
+                try await SettingsService.updatePushEnabled(enabled, user: user, modelContext: modelContext)
+            } catch is CancellationError {
+                return
+            } catch {
+                Crashlytics.crashlytics().record(error: error)
+                self?.pushSaveError = "알림 설정 저장 실패. 다시 시도해주세요."
+            }
         }
     }
 
-    func setPushTime(_ time: Date, modelContext: ModelContext) async {
+    func setPushTime(_ time: Date, modelContext: ModelContext) {
         pushTime = time
         guard let user else { return }
-        do {
-            try await SettingsService.updatePushTime(
-                time, user: user, nickname: user.nickname, modelContext: modelContext
-            )
-        } catch {
-            Crashlytics.crashlytics().record(error: error)
-            pushSaveError = "알림 시간 저장 실패. 다시 시도해주세요."
+        pushSyncTask?.cancel()
+        pushSyncTask = Task { [weak self] in
+            do {
+                try await SettingsService.updatePushTime(
+                    time, user: user, nickname: user.nickname, modelContext: modelContext
+                )
+            } catch is CancellationError {
+                return
+            } catch {
+                Crashlytics.crashlytics().record(error: error)
+                self?.pushSaveError = "알림 시간 저장 실패. 다시 시도해주세요."
+            }
         }
     }
 
