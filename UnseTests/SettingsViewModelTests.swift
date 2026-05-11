@@ -56,7 +56,8 @@ struct SettingsViewModelTests {
         // setPushEnabled는 내부 Task를 띄우므로 완료를 대기해야 user 갱신 확인 가능.
         // Supabase 호출은 test env에서 fail → pushSaveError가 set될 수 있어 로컬 갱신만 검증.
         vm.setPushEnabled(true, modelContext: context)
-        await vm.pushSyncTask?.value
+        await vm.pushEnabledSyncTask?.value
+        await vm.pushTimeSyncTask?.value
 
         #expect(vm.pushEnabled)
         #expect(user.pushEnabled)
@@ -70,7 +71,8 @@ struct SettingsViewModelTests {
         let newTime = Calendar.current.date(from: DateComponents(hour: 10, minute: 30))!
 
         vm.setPushTime(newTime, modelContext: context)
-        await vm.pushSyncTask?.value
+        await vm.pushEnabledSyncTask?.value
+        await vm.pushTimeSyncTask?.value
 
         #expect(vm.pushTime == newTime)
         #expect(user.pushTime == newTime)
@@ -88,12 +90,30 @@ struct SettingsViewModelTests {
         vm.setPushTime(t1, modelContext: context)
         vm.setPushTime(t2, modelContext: context)
         vm.setPushTime(t3, modelContext: context)
-        await vm.pushSyncTask?.value
+        await vm.pushEnabledSyncTask?.value
+        await vm.pushTimeSyncTask?.value
 
         // vm.pushTime은 sync 부분에서 즉시 마지막 값으로 update됨.
         #expect(vm.pushTime == t3)
         // user.pushTime은 가장 마지막에 완료된 task 결과여야 함 (t3).
         #expect(user.pushTime == t3)
+    }
+
+    @Test("setPushEnabled + setPushTime 동시 호출 → 서로의 task를 cancel하지 않음")
+    func setPushEnabledAndTime_independent_noMutualCancel() async throws {
+        let context = try makeContext()
+        let user = makeUser(context, pushEnabled: false)
+        let vm = SettingsViewModel(user: user)
+        let newTime = Calendar.current.date(from: DateComponents(hour: 12, minute: 0))!
+
+        // 거의 동시에 두 액션 호출. 각각 독립 task라 서로의 in-flight sync를 cancel하면 안 됨.
+        vm.setPushEnabled(true, modelContext: context)
+        vm.setPushTime(newTime, modelContext: context)
+        await vm.pushEnabledSyncTask?.value
+        await vm.pushTimeSyncTask?.value
+
+        #expect(user.pushEnabled == true, "setPushEnabled가 setPushTime에 의해 cancel되면 안됨")
+        #expect(user.pushTime == newTime, "setPushTime이 setPushEnabled에 의해 cancel되면 안됨")
     }
 
     @Test("deleteAccount — user 삭제 + deleteError nil")
