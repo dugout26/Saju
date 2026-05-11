@@ -2,15 +2,15 @@ default_platform(:ios)
 
 # Phase 3-4 — TestFlight + App Store 자동 배포.
 # 사용자 사전 작업:
-# 1. brew install fastlane
+# 1. bundle install (Gemfile로 fastlane 버전 고정 — brew 사용 X)
 # 2. App Store Connect API key (.p8) 생성 → ASC_PRIVATE_KEY_PATH/ASC_KEY_ID/ASC_ISSUER_ID 환경변수
 #    (StoreKit 서버 검증과 동일 key 재사용 가능)
 # 3. FASTLANE_APPLE_ID, FASTLANE_ITC_TEAM_ID — Appfile에서 사용
 #
-# Lanes:
-#   fastlane beta     — TestFlight 업로드 (build number bump + archive + pilot upload)
-#   fastlane release  — App Store 제출 (build + archive + deliver upload + submission)
-#   fastlane bump     — version bump only (project.yml MARKETING_VERSION)
+# Lanes (모두 `bundle exec fastlane <lane>` 으로 호출):
+#   beta     — TestFlight 업로드 (build number bump + archive + pilot upload)
+#   release  — App Store 제출 (build + archive + deliver upload + submission)
+#   bump     — version bump only (project.yml MARKETING_VERSION)
 
 platform :ios do
 
