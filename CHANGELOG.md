@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fastlane TestFlight + App Store lanes + Gemfile
 - KAKAO_APP_KEY xcconfig 외부화 (보안)
 - SPM 의존성 CI 캐싱
+- 단위 테스트 36 → 54건 (Phase 3 완료 시점)
 
 ### Changed
 - APIClient → actor + protocol DI 패턴
@@ -30,10 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - service_role JWT 위조 가능성 → 토큰 직접 비교
 - Crashlytics setUserID 시 PrivacyInfo Linked=true 정확화
 
-### Tests
-- 36 → **54 tests** pass (Phase 3 종료 시점)
-
-## [1.0.0] — TBD
+## [1.0.0] - TBD
 
 첫 App Store 출시 예정.
 
