@@ -194,4 +194,48 @@ struct DailyFortuneViewModelTests {
         #expect(loader.loadCallCount == 1)
         #expect(vm.tomorrowDetail == "tomorrow detail")
     }
+
+    // MARK: - reset (사주 변경 시 캐시 폐기)
+
+    @Test("reset() 호출 시 모든 캐시 nil + isLoading 재설정")
+    func reset_clearsAllCaches() async {
+        let mock = MockAPIClient()
+        await mock.setDailyFortune(.success(.fixture()))
+        await mock.setDailyDetail(.success("detail"))
+        let vm = DailyFortuneViewModel(client: mock)
+
+        await vm.loadFortune(hasSajuProfile: true)
+        await vm.loadTodayDetail()
+        await vm.loadTomorrow()
+        await vm.loadTomorrowDetail()
+        #expect(vm.snapshot != nil)
+        #expect(vm.todayDetail != nil)
+        #expect(vm.tomorrowSnapshot != nil)
+        #expect(vm.tomorrowDetail != nil)
+
+        vm.reset()
+        #expect(vm.snapshot == nil)
+        #expect(vm.tomorrowSnapshot == nil)
+        #expect(vm.todayDetail == nil)
+        #expect(vm.tomorrowDetail == nil)
+        #expect(vm.loadError == nil)
+        #expect(vm.detailError == nil)
+        #expect(vm.isLoading)
+    }
+
+    @Test("reset 후 loadFortune 다시 호출 → 새 fetch 발생")
+    func reset_then_loadFortune_refetches() async {
+        let mock = MockAPIClient()
+        await mock.setDailyFortune(.success(.fixture(oneLiner: "첫 운세")))
+        let vm = DailyFortuneViewModel(client: mock)
+        await vm.loadFortune(hasSajuProfile: true)
+        let firstCount = await mock.dailyFortuneCallCount
+
+        vm.reset()
+        await mock.setDailyFortune(.success(.fixture(oneLiner: "두번째 운세")))
+        await vm.loadFortune(hasSajuProfile: true)
+
+        #expect(await mock.dailyFortuneCallCount == firstCount + 1)
+        #expect(vm.snapshot?.oneLiner == "두번째 운세")
+    }
 }

@@ -48,6 +48,12 @@ struct DailyFortuneView: View {
                 }
             }
             .task { await vm.loadFortune(hasSajuProfile: hasSajuProfile) }
+            // 사주 정보 변경 시 캐시된 snapshot 폐기 → 새 사주로 재로드.
+            // sajuProfile.lastModifiedAt이 SajuEditService.recomputeAndSaveLocally에서 갱신됨.
+            .onChange(of: user?.sajuProfile?.lastModifiedAt) { _, _ in
+                vm.reset()
+                Task { await vm.loadFortune(hasSajuProfile: hasSajuProfile) }
+            }
         }
     }
 
