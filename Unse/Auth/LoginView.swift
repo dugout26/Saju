@@ -32,9 +32,9 @@ struct LoginView: View {
             Button(action: signInWithKakao) {
                 HStack(spacing: 8) {
                     Image(systemName: "message.fill")
-                        .font(.system(size: 15))
+                        .font(.system(size: 18))
                     Text("카카오로 시작하기")
-                        .font(.pretendard(15, .semibold))
+                        .font(.pretendard(18, .semibold))
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
