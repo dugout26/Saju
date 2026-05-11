@@ -123,4 +123,35 @@ struct EditSajuViewModelTests {
         #expect(!vm.showLimitAlert)
         #expect(!dismissable)
     }
+
+    @Test("save 닉네임만 변경 → 권한 체크 skip, 출생필드 alert 안뜸")
+    func save_nicknameOnly_skipsPermissionCheck() async throws {
+        let context = try makeContext()
+        // 권한 차단 조건 (오늘 변경, count=1)이어도 닉네임만 변경이면 권한검사 skip 되어야 함.
+        let user = makeUser(context, modifiedCount: 1, modifiedAt: Date())
+        let vm = EditSajuViewModel(user: user)
+        vm.birthVM.input.nickname = "새닉네임"
+        #expect(!vm.birthFieldsChanged)   // 출생 필드는 그대로
+
+        // 결과(Supabase 호출)는 test env에서 fail 가능 — 라우팅만 검증.
+        _ = await vm.save(isPremium: true, modelContext: context)
+
+        // 출생 필드 alert (권한 차단/recompute confirm)이 절대 뜨면 안됨.
+        #expect(!vm.showRecomputeConfirm)
+        #expect(!vm.showLimitAlert)
+        // 로컬 SwiftData 닉네임 update는 Supabase 호출 전에 실행되므로 반영됨.
+        #expect(user.nickname == "새닉네임")
+    }
+
+    @Test("finishRecompute — showRecomputing false로 reset")
+    func finishRecompute_resetsFlag() throws {
+        let context = try makeContext()
+        let user = makeUser(context)
+        let vm = EditSajuViewModel(user: user)
+        vm.showRecomputing = true
+
+        vm.finishRecompute()
+
+        #expect(!vm.showRecomputing)
+    }
 }

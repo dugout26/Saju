@@ -11,9 +11,8 @@ final class EditSajuViewModel {
 
     let user: UserProfile
 
-    /// 출생 정보 input/검증/compute. EditSajuView가 input.year 등에 binding하므로 var.
-    /// 외부에서 birthVM 자체를 교체할 일은 없지만, SwiftUI Bindable이 keypath 추론에
-    /// 필요해서 var.
+    /// 출생 정보 input/검증/compute. SwiftUI `$vm.birthVM.input.year` keypath binding이
+    /// writable 경로를 요구하므로 var. 외부 교체용 setter는 노출하지 않음.
     var birthVM = BirthInfoViewModel()
 
     // MARK: - UI 상태 (binding)
@@ -100,6 +99,7 @@ final class EditSajuViewModel {
     /// AnalyzingView가 onSave 콜백으로 SajuEditService.commitRecompute를 부름.
     func confirmRecompute(modelContext: ModelContext) {
         isSaving = true
+        defer { isSaving = false }
         do {
             let result = birthVM.compute()
             try SajuEditService.recomputeAndSaveLocally(
@@ -111,7 +111,12 @@ final class EditSajuViewModel {
             Crashlytics.crashlytics().record(error: error)
             errorMessage = "저장 중 오류가 발생했어요. 다시 시도해주세요.\n(\(error.localizedDescription))"
         }
-        isSaving = false
+    }
+
+    /// AnalyzingView가 recompute 완료 후 호출. fullScreenCover dismiss용 — View가 상태를 직접
+    /// 변경하지 않도록 메서드로 노출.
+    func finishRecompute() {
+        showRecomputing = false
     }
 
     // MARK: - Private

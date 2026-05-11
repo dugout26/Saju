@@ -61,7 +61,7 @@ struct EditSajuView: View {
                     )
                 },
                 onComplete: {
-                    vm.showRecomputing = false
+                    vm.finishRecompute()
                     dismiss()
                 },
                 title: "사주를 다시 풀고 있어요"
