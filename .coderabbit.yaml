@@ -20,6 +20,40 @@ reviews:
   pre_merge_checks:
     docstrings:
       mode: off
+    # CLAUDE.md §6.5 Conventional Commits 강제 (warning — 차단은 아님)
+    title:
+      mode: warning
+      requirements: |
+        Conventional Commits 형식: <type>(<scope?>): <한국어 요약 한 줄>
+        type: feat | fix | refactor | chore | docs | test | style | perf | build | ci
+        예: "feat(chat): streaming 재시도 추가"
+    description:
+      mode: warning
+
+  # iOS 프로젝트의 SwiftLint와 동기화 — 명시적 활성으로 룰 적용 보장.
+  tools:
+    swiftlint:
+      enabled: true
+
+  # CLAUDE.md §6.5 Issue 라벨 정책. CodeRabbit이 PR 변경 영역에 따라 자동 부착.
+  # auto_apply_labels는 false 유지 — 사용자가 검토 후 수동 부착.
+  suggested_labels: true
+  auto_apply_labels: false
+  labeling_instructions:
+    - label: blocker
+      instructions: App Store 제출 거부 / production 데이터 손실 위험이 있는 변경.
+    - label: security
+      instructions: 인증·결제·secrets·PII·RLS·암호화 관련 변경.
+    - label: monitoring
+      instructions: Crashlytics·Analytics·Performance·로깅·알람 관련 변경.
+    - label: compliance
+      instructions: Privacy manifest·ATT·약관·개인정보 처리방침 등 법적 / 정책 준수.
+    - label: enhancement
+      instructions: 신규 기능 추가 또는 기존 기능 개선.
+    - label: bug
+      instructions: 재현 가능한 결함 수정.
+    - label: tech-debt
+      instructions: 동작 변경 없는 리팩토링, 데드코드 제거, 구조 개선.
 
   path_filters:
     - "!**/*.xcodeproj/**"
@@ -94,3 +128,17 @@ reviews:
 
 chat:
   auto_reply: true
+
+# Cross-project 누수 방지 — learning은 이 repo 안에서만 사용.
+knowledge_base:
+  learnings:
+    scope: local
+  issues:
+    scope: local
+  pull_requests:
+    scope: local
+
+# CodeRabbit 자동 생성 docstring을 한국어로.
+code_generation:
+  docstrings:
+    language: ko-KR
