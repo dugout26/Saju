@@ -32,6 +32,21 @@ final class DailyFortuneViewModel {
         self.rewardedLoader = rewardedLoader
     }
 
+    /// 사주 정보 변경 후 호출 — 캐시된 운세/풀이를 모두 초기화. 다음 loadFortune이
+    /// 새 사주 기준으로 fetch하도록. loading flag도 초기화 (Gated 함수가 영구 차단
+    /// 되지 않도록).
+    func reset() {
+        snapshot = nil
+        tomorrowSnapshot = nil
+        todayDetail = nil
+        tomorrowDetail = nil
+        loadError = nil
+        detailError = nil
+        isLoading = true
+        isLoadingTomorrow = false
+        isLoadingDetail = false
+    }
+
     /// 오늘의 운세 로드. saju 프로필 없으면 즉시 종료 (loading off).
     func loadFortune(hasSajuProfile: Bool) async {
         guard hasSajuProfile else { isLoading = false; return }
