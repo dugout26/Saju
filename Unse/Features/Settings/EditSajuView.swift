@@ -3,7 +3,7 @@ import SwiftData
 import FirebaseCrashlytics
 
 /// 본인 사주 정보 편집. 저장 시 SwiftData + Supabase 양쪽 동기화.
-/// 출생 정보 변경 제한: Free 평생 1회 / PRO 1일 1회. 닉네임만 변경 시엔 무제한.
+/// 출생 정보 변경 제한: Free 30일 1회 / PRO 1일 1회. 닉네임만 변경 시엔 무제한.
 struct EditSajuView: View {
     let user: UserProfile
 

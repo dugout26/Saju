@@ -30,6 +30,8 @@ enum SajuEditService {
         let lastDay = cal.startOfDay(for: lastModified)
         let today = cal.startOfDay(for: now)
         guard let allowedDay = cal.date(byAdding: .day, value: 30, to: lastDay) else {
+            // Calendar 연산 실패는 정상 기기에서 발생하지 않음. 방어적으로 허용.
+            assertionFailure("Calendar.date(byAdding:) unexpected failure")
             return (true, 0)
         }
         if today >= allowedDay { return (true, 0) }
