@@ -33,22 +33,22 @@ final class SettingsViewModel {
 
     // MARK: - 액션
 
-    func setPushEnabled(_ enabled: Bool, modelContext: ModelContext) {
+    func setPushEnabled(_ enabled: Bool, modelContext: ModelContext) async {
         pushEnabled = enabled
         guard let user else { return }
         do {
-            try SettingsService.updatePushEnabled(enabled, user: user, modelContext: modelContext)
+            try await SettingsService.updatePushEnabled(enabled, user: user, modelContext: modelContext)
         } catch {
             Crashlytics.crashlytics().record(error: error)
             pushSaveError = "알림 설정 저장 실패. 다시 시도해주세요."
         }
     }
 
-    func setPushTime(_ time: Date, modelContext: ModelContext) {
+    func setPushTime(_ time: Date, modelContext: ModelContext) async {
         pushTime = time
         guard let user else { return }
         do {
-            try SettingsService.updatePushTime(
+            try await SettingsService.updatePushTime(
                 time, user: user, nickname: user.nickname, modelContext: modelContext
             )
         } catch {

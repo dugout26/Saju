@@ -220,7 +220,7 @@ struct SettingsView: View {
             }
             .tint(Color.lavenderDeep)
             .onChange(of: vm.pushEnabled) { _, newValue in
-                vm.setPushEnabled(newValue, modelContext: modelContext)
+                Task { await vm.setPushEnabled(newValue, modelContext: modelContext) }
             }
 
             if vm.pushEnabled {
@@ -234,7 +234,7 @@ struct SettingsView: View {
                 }
                 .tint(Color.lavenderDeep)
                 .onChange(of: vm.pushTime) { _, newValue in
-                    vm.setPushTime(newValue, modelContext: modelContext)
+                    Task { await vm.setPushTime(newValue, modelContext: modelContext) }
                 }
             }
         }

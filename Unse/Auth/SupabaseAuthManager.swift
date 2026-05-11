@@ -168,6 +168,43 @@ enum SupabaseAuthManager {
             .execute()
     }
 
+    /// 푸시 알림 시간 서버 동기화. `Date` → KST `"HH:mm:ss"` 변환.
+    /// 서버 cron이 매 30분 KST 기준으로 user.push_time 매칭해 발송하므로 KST 변환 필수.
+    static func updatePushTime(_ time: Date) async throws {
+        guard let userId = try? await SupabaseManager.shared.auth.session.user.id else {
+            throw AuthError.invalidCredential
+        }
+        struct Update: Encodable { let push_time: String }
+        try await SupabaseManager.shared
+            .from("users")
+            .update(Update(push_time: Self.kstTimeString(from: time)))
+            .eq("id", value: userId)
+            .execute()
+    }
+
+    /// 푸시 on/off 서버 동기화. off면 cron 발송 대상 제외.
+    static func updatePushEnabled(_ enabled: Bool) async throws {
+        guard let userId = try? await SupabaseManager.shared.auth.session.user.id else {
+            throw AuthError.invalidCredential
+        }
+        struct Update: Encodable { let push_enabled: Bool }
+        try await SupabaseManager.shared
+            .from("users")
+            .update(Update(push_enabled: enabled))
+            .eq("id", value: userId)
+            .execute()
+    }
+
+    /// `Date` → KST 24h `"HH:mm:ss"`. PostgreSQL `time` 컬럼 포맷.
+    /// nonisolated — 테스트에서 직접 호출 가능.
+    nonisolated static func kstTimeString(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "Asia/Seoul") ?? TimeZone(secondsFromGMT: 9 * 3600)!
+        return formatter.string(from: date)
+    }
+
     // MARK: - Helpers
 
     private static func upsertUser(id: UUID, nickname: String, authProvider: String) async throws {
