@@ -23,6 +23,10 @@ actor MockAPIClient: APIClientProtocol {
         dailyFortuneResult = result
     }
 
+    func setDailyDetail(_ result: Result<String, Error>) {
+        dailyDetailResult = result
+    }
+
     func setSajuReading(_ result: Result<String, Error>) {
         sajuReadingResult = result
     }

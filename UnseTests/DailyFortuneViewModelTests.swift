@@ -54,4 +54,79 @@ struct DailyFortuneViewModelTests {
         await vm.loadTomorrow()
         #expect(await mock.dailyFortuneCallCount == firstCount)
     }
+
+    // MARK: - daily-detail 흐름 (loadTodayDetail / loadTomorrowDetail)
+
+    @Test("loadTodayDetail은 snapshot 없으면 즉시 종료, fetch 호출 X")
+    func loadTodayDetail_noSnapshotGuard() async {
+        let mock = MockAPIClient()
+        await mock.setDailyDetail(.success("내용"))
+        let vm = DailyFortuneViewModel(client: mock)
+        // snapshot 미설정 상태에서 호출
+        await vm.loadTodayDetail()
+        #expect(vm.todayDetail == nil)
+        #expect(!vm.isLoadingDetail)
+        #expect(await mock.dailyDetailCallCount == 0)
+    }
+
+    @Test("loadTodayDetail 성공 시 todayDetail 설정, isLoadingDetail 해제")
+    func loadTodayDetail_success() async {
+        let mock = MockAPIClient()
+        await mock.setDailyFortune(.success(.fixture()))
+        await mock.setDailyDetail(.success("오늘 자세한 풀이"))
+        let vm = DailyFortuneViewModel(client: mock)
+        await vm.loadFortune(hasSajuProfile: true)   // snapshot 채움
+
+        await vm.loadTodayDetail()
+
+        #expect(vm.todayDetail == "오늘 자세한 풀이")
+        #expect(vm.detailError == nil)
+        #expect(!vm.isLoadingDetail)
+        #expect(await mock.dailyDetailCallCount == 1)
+    }
+
+    @Test("loadTodayDetail 캐시 hit — 이미 채워져 있으면 재호출 X")
+    func loadTodayDetail_cacheHit() async {
+        let mock = MockAPIClient()
+        await mock.setDailyFortune(.success(.fixture()))
+        await mock.setDailyDetail(.success("첫 호출"))
+        let vm = DailyFortuneViewModel(client: mock)
+        await vm.loadFortune(hasSajuProfile: true)
+
+        await vm.loadTodayDetail()
+        let firstCount = await mock.dailyDetailCallCount
+        await vm.loadTodayDetail()
+
+        #expect(await mock.dailyDetailCallCount == firstCount)
+    }
+
+    @Test("loadTodayDetail 실패 시 detailError 설정, todayDetail nil 유지")
+    func loadTodayDetail_failure() async {
+        let mock = MockAPIClient()
+        await mock.setDailyFortune(.success(.fixture()))
+        let err = NSError(domain: "test", code: 500, userInfo: [NSLocalizedDescriptionKey: "fail"])
+        await mock.setDailyDetail(.failure(err))
+        let vm = DailyFortuneViewModel(client: mock)
+        await vm.loadFortune(hasSajuProfile: true)
+
+        await vm.loadTodayDetail()
+
+        #expect(vm.todayDetail == nil)
+        #expect(vm.detailError != nil)
+        #expect(!vm.isLoadingDetail)
+    }
+
+    @Test("loadTomorrowDetail 성공 시 tomorrowDetail 설정 (snapshot 가드 X)")
+    func loadTomorrowDetail_success() async {
+        let mock = MockAPIClient()
+        await mock.setDailyDetail(.success("내일 풀이"))
+        let vm = DailyFortuneViewModel(client: mock)
+
+        await vm.loadTomorrowDetail()
+
+        #expect(vm.tomorrowDetail == "내일 풀이")
+        #expect(vm.detailError == nil)
+        #expect(!vm.isLoadingDetail)
+        #expect(await mock.dailyDetailCallCount == 1)
+    }
 }
