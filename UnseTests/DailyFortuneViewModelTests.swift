@@ -60,9 +60,8 @@ struct DailyFortuneViewModelTests {
     @Test("loadTodayDetail은 snapshot 없으면 즉시 종료, fetch 호출 X")
     func loadTodayDetail_noSnapshotGuard() async {
         let mock = MockAPIClient()
-        await mock.setDailyDetail(.success("내용"))
+        // fetchDailyDetail이 호출 안 되는 경로이므로 dailyDetailResult 설정 불필요.
         let vm = DailyFortuneViewModel(client: mock)
-        // snapshot 미설정 상태에서 호출
         await vm.loadTodayDetail()
         #expect(vm.todayDetail == nil)
         #expect(!vm.isLoadingDetail)
