@@ -128,4 +128,70 @@ struct DailyFortuneViewModelTests {
         #expect(!vm.isLoadingDetail)
         #expect(await mock.dailyDetailCallCount == 1)
     }
+
+    // MARK: - 광고 게이팅 (loadTomorrowGated / loadTodayDetailGated / loadTomorrowDetailGated)
+
+    @Test("loadTomorrowGated premium=true는 광고 호출 X, 즉시 fetch")
+    func loadTomorrowGated_premium_skipsAd() async throws {
+        let mock = MockAPIClient()
+        await mock.setDailyFortune(.success(.fixture()))
+        let loader = MockRewardedLoader()
+        let vm = DailyFortuneViewModel(client: mock, rewardedLoader: loader)
+
+        vm.loadTomorrowGated(isPremium: true)
+        let done = try await waitUntil { vm.tomorrowSnapshot != nil }
+
+        #expect(done)
+        #expect(loader.loadCallCount == 0)
+        #expect(!vm.isLoadingTomorrow)
+    }
+
+    @Test("loadTomorrowGated premium=false는 광고 호출 + 캐시 채움")
+    func loadTomorrowGated_free_callsLoader() async throws {
+        let mock = MockAPIClient()
+        await mock.setDailyFortune(.success(.fixture()))
+        let loader = MockRewardedLoader()
+        loader.grantsImmediately = true
+        let vm = DailyFortuneViewModel(client: mock, rewardedLoader: loader)
+
+        vm.loadTomorrowGated(isPremium: false)
+        let done = try await waitUntil { vm.tomorrowSnapshot != nil }
+
+        #expect(done)
+        #expect(loader.loadCallCount == 1)
+        #expect(!vm.isLoadingTomorrow)
+    }
+
+    @Test("loadTodayDetailGated premium=true는 광고 X, snapshot 있으면 detail 로드")
+    func loadTodayDetailGated_premium_skipsAd() async throws {
+        let mock = MockAPIClient()
+        await mock.setDailyFortune(.success(.fixture()))
+        await mock.setDailyDetail(.success("today detail"))
+        let loader = MockRewardedLoader()
+        let vm = DailyFortuneViewModel(client: mock, rewardedLoader: loader)
+        await vm.loadFortune(hasSajuProfile: true)
+
+        vm.loadTodayDetailGated(isPremium: true)
+        let done = try await waitUntil { vm.todayDetail != nil }
+
+        #expect(done)
+        #expect(loader.loadCallCount == 0)
+        #expect(vm.todayDetail == "today detail")
+    }
+
+    @Test("loadTomorrowDetailGated premium=false는 광고 호출 + tomorrowDetail 설정")
+    func loadTomorrowDetailGated_free_callsLoader() async throws {
+        let mock = MockAPIClient()
+        await mock.setDailyDetail(.success("tomorrow detail"))
+        let loader = MockRewardedLoader()
+        loader.grantsImmediately = true
+        let vm = DailyFortuneViewModel(client: mock, rewardedLoader: loader)
+
+        vm.loadTomorrowDetailGated(isPremium: false)
+        let done = try await waitUntil { vm.tomorrowDetail != nil }
+
+        #expect(done)
+        #expect(loader.loadCallCount == 1)
+        #expect(vm.tomorrowDetail == "tomorrow detail")
+    }
 }

@@ -22,10 +22,14 @@ final class DailyFortuneViewModel {
     var detailError: String?
 
     private let client: any APIClientProtocol
-    private let rewardedLoader = RewardedAdLoader()
+    private let rewardedLoader: any RewardedAdPresenting
 
-    init(client: any APIClientProtocol = APIClient.shared) {
+    init(
+        client: any APIClientProtocol = APIClient.shared,
+        rewardedLoader: any RewardedAdPresenting = RewardedAdLoader()
+    ) {
         self.client = client
+        self.rewardedLoader = rewardedLoader
     }
 
     /// 오늘의 운세 로드. saju 프로필 없으면 즉시 종료 (loading off).

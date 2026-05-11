@@ -48,10 +48,18 @@ struct BannerAdView: UIViewRepresentable {
     }
 }
 
-// MARK: - RewardedAdLoader (보상형 광고)
+// MARK: - RewardedAdPresenting (testable abstraction)
+
+/// ViewModel은 이 protocol에만 의존 — test에서 mock 주입 가능.
+@MainActor
+protocol RewardedAdPresenting {
+    func loadAndShow(unitId: String, onReward: @escaping () -> Void)
+}
+
+// MARK: - RewardedAdLoader (보상형 광고 — 실 SDK 구현)
 
 @MainActor
-final class RewardedAdLoader: NSObject {
+final class RewardedAdLoader: NSObject, RewardedAdPresenting {
     private var rewarded: GADRewardedAd?
     private var onReward: (() -> Void)?
 
