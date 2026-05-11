@@ -41,4 +41,40 @@ struct SajuEditServiceTests {
         let now  = Self.date(2026, 5, 11, 12, 0)
         #expect(SajuEditService.canEditSajuToday(lastModified: last, now: now))
     }
+
+    // MARK: - Free 30일 1회
+
+    @Test("Free 30일 — 3일 전 변경 후 차단, 약 27일 남음")
+    func freeMonthly_3daysAgo_blocked() {
+        let last = Self.date(2026, 5, 8, 12, 0)
+        let now  = Self.date(2026, 5, 11, 12, 0)
+        let status = SajuEditService.freeMonthlyEditStatus(lastModified: last, now: now)
+        #expect(!status.allowed)
+        #expect(status.daysRemaining == 27)
+    }
+
+    @Test("Free 30일 — 정확히 30일 경과 후 변경 가능")
+    func freeMonthly_exactly30Days_allowed() {
+        let last = Self.date(2026, 4, 11, 12, 0)
+        let now  = Self.date(2026, 5, 11, 0, 0)
+        let status = SajuEditService.freeMonthlyEditStatus(lastModified: last, now: now)
+        #expect(status.allowed)
+    }
+
+    @Test("Free 30일 — 31일 경과 → 변경 가능")
+    func freeMonthly_31Days_allowed() {
+        let last = Self.date(2026, 4, 10, 12, 0)
+        let now  = Self.date(2026, 5, 11, 12, 0)
+        let status = SajuEditService.freeMonthlyEditStatus(lastModified: last, now: now)
+        #expect(status.allowed)
+    }
+
+    @Test("Free 30일 — 같은 날 → 30일 남음")
+    func freeMonthly_sameDay_30days() {
+        let last = Self.date(2026, 5, 11, 9, 0)
+        let now  = Self.date(2026, 5, 11, 23, 0)
+        let status = SajuEditService.freeMonthlyEditStatus(lastModified: last, now: now)
+        #expect(!status.allowed)
+        #expect(status.daysRemaining == 30)
+    }
 }

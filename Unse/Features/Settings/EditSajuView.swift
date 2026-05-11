@@ -211,11 +211,15 @@ struct EditSajuView: View {
                 return
             }
         } else {
-            // Free: 평생 1회
-            if user.sajuModifiedCount >= 1 {
-                limitMessage = "무료 버전은 더 이상 변경할 수 없습니다.\nPRO로 업그레이드하면 하루 1회 변경 가능해요."
-                showLimitAlert = true
-                return
+            // Free: 30일 1회 — 출생 정보 실수 회복 여지를 주되 PRO와 차별화.
+            if let last = user.sajuProfile?.lastModifiedAt,
+               user.sajuModifiedCount > 0 {
+                let status = SajuEditService.freeMonthlyEditStatus(lastModified: last)
+                if !status.allowed {
+                    limitMessage = "무료 버전은 30일에 한 번 변경 가능해요.\n약 \(status.daysRemaining)일 후 다시 시도해 주세요.\nPRO는 매일 변경 가능합니다."
+                    showLimitAlert = true
+                    return
+                }
             }
         }
 
