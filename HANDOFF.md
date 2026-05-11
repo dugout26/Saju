@@ -39,6 +39,7 @@ xcodegen generate  # project.yml 변경분 반영
 | App Store Connect API key (`.p8`) | ❌ | (집컴 보유 시 OK) | 🔴 P0 | StoreKit verify-receipt + ASN v2 webhook + fastlane 모두 동일 key. 회사컴에선 배포 안 하면 불필요 |
 | Supabase secrets 설정 | (Dashboard) | (Dashboard) | 🔴 P0 | `ASC_PRIVATE_KEY` (PEM 전체), `ASC_KEY_ID`, `ASC_ISSUER_ID`. Supabase Dashboard → Project Settings → Edge Functions → Secrets |
 | Edge Functions 배포 | (선택) | ✅ 추천 | 🔴 P0 | `supabase functions deploy verify-receipt asn-v2-webhook chat daily-fortune kakao-auth saju-reading send-push daily-detail` |
+| pg_cron 활성화 + Vault secret + 0007 migration | — | ✅ | 🟡 P1 | Supabase Dashboard → Extensions에서 `pg_cron`, `pg_net` 활성. SQL editor에서 `select vault.create_secret('<service_role_jwt>', 'service_role_key');` + `select vault.create_secret('https://<project-ref>.supabase.co', 'project_url');`. 그 후 `supabase db push` (0007_daily_push_cron.sql 적용) |
 | App Store Connect → ASN v2 URL 등록 | — | ✅ | 🟡 P1 | Production/Sandbox 동일 URL: `https://<project>.functions.supabase.co/asn-v2-webhook`, Version 2 |
 | fastlane ENV 설정 | (선택) | ✅ 추천 | 🟡 P1 | `FASTLANE_APPLE_ID`, `FASTLANE_ITC_TEAM_ID`, `ASC_PRIVATE_KEY_PATH` (.p8 파일 경로) |
 | 실기기 + Release 빌드 검증 | (선택) | ✅ 추천 | 🔴 P0 | CLAUDE.md §6 "TestFlight / App Store 제출 전 필수" 4개 시나리오 (편집/포그라운드/재실행/장시간) |
