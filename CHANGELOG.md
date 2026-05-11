@@ -42,3 +42,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - App Store 메타데이터 (스크린샷, 키워드, 설명)
 - 실기기 Release 빌드 검증 (CLAUDE.md §6 4개 시나리오)
 - Supabase secrets + pg_cron Vault 등록
+
+[Unreleased]: https://github.com/dugout26/Saju/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/dugout26/Saju/releases/tag/v1.0.0
