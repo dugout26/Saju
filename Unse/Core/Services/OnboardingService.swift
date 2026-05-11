@@ -33,6 +33,24 @@ enum OnboardingService {
         let isKakao = session.user.userMetadata["kakao_id"] != nil
         let authProvider = isKakao ? "kakao" : "apple"
 
+        try saveLocalProfile(
+            input: input, saju: saju, daeWoon: daeWoon,
+            authProvider: authProvider, modelContext: modelContext
+        )
+
+        // 푸시 권한은 거부돼도 onboarding은 성공으로 처리
+        _ = await PushManager.shared.requestPermission()
+    }
+
+    /// completeSignup의 SwiftData 저장 부분만 분리 — 외부 의존(Supabase / Push) 없이
+    /// 단위 테스트 가능. UserProfile + SajuProfile 생성 후 insert + save.
+    static func saveLocalProfile(
+        input: BirthInput,
+        saju: SajuComputed,
+        daeWoon: [DaeWoon],
+        authProvider: String,
+        modelContext: ModelContext
+    ) throws {
         let user = UserProfile(nickname: input.nickname, authProvider: authProvider)
         let profile = SajuProfile(
             input: input, saju: saju, daeWoon: daeWoon,
@@ -41,9 +59,6 @@ enum OnboardingService {
         user.sajuProfile = profile
         modelContext.insert(user)
         try modelContext.save()
-
-        // 푸시 권한은 거부돼도 onboarding은 성공으로 처리
-        _ = await PushManager.shared.requestPermission()
     }
 
     /// stage 1·2 풀이 background prefetch. 결과 무시 — saju_readings에 캐시되므로
