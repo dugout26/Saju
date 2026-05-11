@@ -17,10 +17,15 @@ final class ChatViewModel {
     ]
 
     private let client: any APIClientProtocol
-    private let rewardedLoader = RewardedAdLoader()
+    private let rewardedLoader: any RewardedAdPresenting
 
-    init(nickname: String, client: any APIClientProtocol = APIClient.shared) {
+    init(
+        nickname: String,
+        client: any APIClientProtocol = APIClient.shared,
+        rewardedLoader: any RewardedAdPresenting = RewardedAdLoader()
+    ) {
         self.client = client
+        self.rewardedLoader = rewardedLoader
         messages = [
             ChatBubble(role: .assistant,
                        text: "안녕하세요 \(nickname)님. 사주에 대해 궁금한 점을 자유롭게 물어보세요.")

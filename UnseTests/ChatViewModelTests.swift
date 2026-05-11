@@ -72,4 +72,52 @@ struct ChatViewModelTests {
         #expect(vm.messages[2].text == "잠시 오류가 발생했어요. 다시 시도해주세요.")
         #expect(!vm.isStreaming)
     }
+
+    // MARK: - sendGated
+
+    @Test("sendGated premium=true는 광고 loader 호출 안 함")
+    func sendGated_premium_skipsAd() {
+        let loader = MockRewardedLoader()
+        let vm = ChatViewModel(nickname: "지수", client: MockAPIClient(), rewardedLoader: loader)
+        vm.inputText = "프리미엄 질문"
+        vm.sendGated(isPremium: true)
+        #expect(loader.loadCallCount == 0)
+        #expect(!vm.isWatchingAd)
+    }
+
+    @Test("sendGated 빈 입력은 광고 loader 호출 안 함 (premium 무관)")
+    func sendGated_emptyInput_skipsAd() {
+        let loader = MockRewardedLoader()
+        let vm = ChatViewModel(nickname: "지수", client: MockAPIClient(), rewardedLoader: loader)
+        vm.inputText = "   "
+        vm.sendGated(isPremium: false)
+        #expect(loader.loadCallCount == 0)
+        #expect(!vm.isWatchingAd)
+    }
+
+    @Test("sendGated premium=false는 광고 loader 호출 + isWatchingAd 진입")
+    func sendGated_free_callsLoader() {
+        let loader = MockRewardedLoader()
+        loader.grantsImmediately = false   // reward 늦게 — 진행 중 상태 검증
+        let vm = ChatViewModel(nickname: "지수", client: MockAPIClient(), rewardedLoader: loader)
+        vm.inputText = "무료 질문"
+        vm.sendGated(isPremium: false)
+        #expect(loader.loadCallCount == 1)
+        #expect(vm.isWatchingAd)
+    }
+
+    @Test("sendGated premium=false + 즉시 reward → isWatchingAd 해제")
+    func sendGated_reward_clearsAdFlag() async throws {
+        let loader = MockRewardedLoader()
+        loader.grantsImmediately = true
+        let mock = MockAPIClient()
+        await mock.setChatStream(chunks: ["ok"])
+        let vm = ChatViewModel(nickname: "지수", client: mock, rewardedLoader: loader)
+        vm.inputText = "무료 질문"
+        vm.sendGated(isPremium: false)
+
+        // grant() 호출 후 Task { await send() } 스폰. 메시지 누적 위해 짧게 대기.
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(!vm.isWatchingAd)
+    }
 }
