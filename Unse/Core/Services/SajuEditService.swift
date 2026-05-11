@@ -10,6 +10,16 @@ import SwiftData
 @MainActor
 enum SajuEditService {
 
+    /// PRO 사주 변경 cooldown 검사. KST 자정 기준 — "1일 1회"의 사용자 인지와 일치.
+    /// 어제 23시 변경 후 오늘 09시(10h 경과)에 정확 24h 미만이라도 변경 가능해야 자연스러움.
+    /// pure function이라 nonisolated — 테스트에서 MainActor context 없이 호출 가능.
+    /// - returns: true면 오늘 변경 가능. false면 오늘 이미 변경했음.
+    nonisolated static func canEditSajuToday(lastModified: Date, now: Date = Date()) -> Bool {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
+        return cal.startOfDay(for: lastModified) < cal.startOfDay(for: now)
+    }
+
     /// 닉네임만 변경 (사주 재계산 X). 로컬 + 원격 동기화. 성공 시 nil throw.
     /// 로컬 저장 실패는 throw, 원격 동기화 실패는 별도 throw (호출자가 메시지 분기).
     static func updateNickname(

@@ -202,11 +202,11 @@ struct EditSajuView: View {
 
         // 출생 정보 변경 — 권한 체크
         if sub.isPremium {
-            // PRO: 1일 1회 (마지막 변경 후 24h)
+            // PRO: 1일 1회 — KST 자정 기준 (사용자 인지의 "하루"와 일치).
             if let last = user.sajuProfile?.lastModifiedAt,
                user.sajuModifiedCount > 0,
-               Date().timeIntervalSince(last) < 24 * 3600 {
-                limitMessage = "사주 변경은 하루에 한 번만 가능해요. 24시간 후 다시 시도해 주세요."
+               !SajuEditService.canEditSajuToday(lastModified: last) {
+                limitMessage = "사주 변경은 하루에 한 번만 가능해요. 내일 다시 시도해 주세요."
                 showLimitAlert = true
                 return
             }
