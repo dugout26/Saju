@@ -61,6 +61,35 @@ enum OnboardingService {
         try modelContext.save()
     }
 
+    /// 재로그인 시 서버에 이미 있는 프로필을 로컬 SwiftData에 복원.
+    /// Manse는 deterministic이라 BirthInput만 있으면 pillar/daeWoon 재계산 가능 — 직렬화 우회.
+    /// 호출자: LoginView signIn 성공 path. snapshot nil이면 호출 안 함 (신규 회원가입).
+    static func restoreLocalProfile(
+        snapshot: SupabaseAuthManager.ExistingProfileSnapshot,
+        modelContext: ModelContext
+    ) throws {
+        let result = Manse.calculate(
+            year: snapshot.input.year,
+            month: snapshot.input.month,
+            day: snapshot.input.day,
+            hour: snapshot.input.hour,
+            gender: snapshot.input.gender
+        )
+        let user = UserProfile(
+            nickname: snapshot.nickname,
+            authProvider: snapshot.authProvider,
+            pushTime: snapshot.pushTime,
+            pushEnabled: snapshot.pushEnabled
+        )
+        let profile = SajuProfile(
+            input: snapshot.input, saju: result.saju, daeWoon: result.daeWoon,
+            displayName: snapshot.nickname, relation: "본인"
+        )
+        user.sajuProfile = profile
+        modelContext.insert(user)
+        try modelContext.save()
+    }
+
     /// stage 1·2 풀이 background prefetch. 결과 무시 — saju_readings에 캐시되므로
     /// SajuResultView 진입 시 자동 hit. 호출 실패 무시.
     /// client 파라미터는 테스트에서 mock 주입용.
