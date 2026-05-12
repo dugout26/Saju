@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>하루결 — 법적 고지</title>
+<style>
+  :root {
+    --bg: #FAF8F4;
+    --ink1: #1A1A1A;
+    --ink2: #4A4A4A;
+    --ink3: #8A8A8A;
+    --lavender: #8E78D4;
+    --line: #E8E4DC;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink1);
+    font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  main {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 48px 24px;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin: 0 0 12px;
+    letter-spacing: -0.5px;
+  }
+  .subtitle {
+    color: var(--ink3);
+    font-size: 14px;
+    margin-bottom: 40px;
+  }
+  ul.docs {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  ul.docs li {
+    border-bottom: 1px solid var(--line);
+  }
+  ul.docs li:last-child { border-bottom: none; }
+  ul.docs a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 4px;
+    color: var(--ink1);
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 500;
+  }
+  ul.docs a:hover { color: var(--lavender); }
+  ul.docs a::after {
+    content: "→";
+    color: var(--ink3);
+    font-size: 18px;
+  }
+  footer {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    color: var(--ink3);
+    font-size: 12px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>하루결</h1>
+  <p class="subtitle">자평명리 사주 + AI 매일 운세</p>
+
+  <ul class="docs">
+    <li><a href="terms.html">이용약관</a></li>
+    <li><a href="privacy.html">개인정보처리방침</a></li>
+    <li><a href="disclaimer.html">면책 고지</a></li>
+  </ul>
+
+  <footer>
+    문의: support@unse.kr<br>
+    © 2026 Mound
+  </footer>
+</main>
+</body>
+</html>
