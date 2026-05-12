@@ -68,7 +68,7 @@ git clone https://github.com/dugout26/Saju.git
 cd Saju
 cp Config.example.xcconfig Config.local.xcconfig
 # Config.local.xcconfig를 열어 KAKAO_APP_KEY 입력
-xcodegen generate
+cd ios && xcodegen generate
 open Unse.xcodeproj
 ```
 

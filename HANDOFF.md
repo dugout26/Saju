@@ -32,10 +32,10 @@ Firebase Performance/Analytics, 다크모드/Dynamic Type, APIClientProtocol DI,
 - [x] Phase 2 안정성 (CI, retry/backoff)
 - [x] Phase 3 인프라 (Firebase Performance, 다크모드, DI, fastlane)
 - [x] MVVM 분리 (#53~#58)
-- [x] **AdMob production unit ID** — 이미 코드에 반영. Debug=Google 테스트 ID, Release=production ID([AdsManager.swift:13](Unse/Core/Ads/AdsManager.swift:13))
-- [x] 약관/개인정보처리방침/면책 v1 문구 ([LegalDocumentView.swift](Unse/Features/Legal/LegalDocumentView.swift))
+- [x] **AdMob production unit ID** — 이미 코드에 반영. Debug=Google 테스트 ID, Release=production ID([AdsManager.swift:13](ios/Unse/Core/Ads/AdsManager.swift:13))
+- [x] 약관/개인정보처리방침/면책 v1 문구 ([LegalDocumentView.swift](ios/Unse/Features/Legal/LegalDocumentView.swift))
 - [x] App Store 메타데이터 초안 ([docs/app-store-metadata.md](docs/app-store-metadata.md), 305줄)
-- [x] PrivacyInfo.xcprivacy ([Unse/PrivacyInfo.xcprivacy](Unse/PrivacyInfo.xcprivacy))
+- [x] PrivacyInfo.xcprivacy ([Unse/PrivacyInfo.xcprivacy](ios/Unse/PrivacyInfo.xcprivacy))
 - [ ] PR #62 + #63 머지 (CR + 사용자 시각 확인 후)
 
 ### 2-2. 사용자 환경 작업
@@ -99,7 +99,7 @@ PR #62 + #63 머지 전 마지막으로 cleanwater iPhone 15 Pro에서 확인:
 
 ```bash
 # cleanwater iPhone 15 Pro (와이파이 페어링)
-xcodebuild -project Unse.xcodeproj -scheme Unse \
+cd ios && xcodebuild -project Unse.xcodeproj -scheme Unse \
   -destination 'id=00008130-000A4D8136F8001C' \
   -configuration Debug -allowProvisioningUpdates build
 
@@ -139,11 +139,11 @@ xcrun devicectl device install app --device 9FE5BF11-2185-5B72-92A9-19AEF11C7BD7
 
 ```bash
 # 빌드 검증
-xcodebuild -project Unse.xcodeproj -scheme Unse \
+cd ios && xcodebuild -project Unse.xcodeproj -scheme Unse \
   -destination 'generic/platform=iOS Simulator' build
 
 # 전체 테스트
-xcodebuild test -project Unse.xcodeproj -scheme Unse \
+cd ios && xcodebuild test -project Unse.xcodeproj -scheme Unse \
   -destination 'platform=iOS Simulator,name=iPhone 17'
 
 # Edge Functions Deno 테스트
