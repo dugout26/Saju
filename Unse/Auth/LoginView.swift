@@ -1,6 +1,7 @@
 import SwiftUI
 import FirebaseCrashlytics
 
+@MainActor
 struct LoginView: View {
     @State private var isAuthenticating = false
     @State private var errorMessage: String?
