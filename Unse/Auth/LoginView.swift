@@ -44,13 +44,14 @@ struct LoginView: View {
             .disabled(isAuthenticating)
 
             // 커스텀 Apple 버튼 — Kakao와 동일한 Pretendard 적용 위해 SignInWithAppleButton 대신 사용.
-            // Apple HIG 준수: `applelogo` 공식 SF Symbol + 표준 텍스트 "Apple로 시작하기" + 검정 배경.
+            // Apple HIG 준수: `applelogo` 공식 SF Symbol + 표준 localized 텍스트("Apple로 계속하기" =
+            // "Continue with Apple"의 공식 한국어 번역) + 검정 배경. "Apple로 시작하기"는 비표준이라 금지.
             // 실제 auth는 AppleAuthManager의 ASAuthorizationController가 처리 (signInWithApple 진입점).
             Button(action: signInWithApple) {
                 HStack(spacing: 8) {
                     Image(systemName: "applelogo")
                         .font(.system(size: 20, weight: .bold))
-                    Text("Apple로 시작하기")
+                    Text("Apple로 계속하기")
                         .font(.pretendard(20, .bold))
                 }
                 .frame(maxWidth: .infinity)
