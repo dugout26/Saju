@@ -155,6 +155,87 @@ enum SupabaseAuthManager {
         try await SupabaseManager.shared.auth.signOut()
     }
 
+    /// 재로그인 시 서버에 이미 저장된 사주 프로필 복원용.
+    /// saju_profiles 행이 없으면(신규 회원가입 흐름) nil → 호출자가 BirthInfoView 진입.
+    /// 있으면 BirthInput + push 설정 반환 → Manse 재계산해 로컬 SwiftData 복원.
+    struct ExistingProfileSnapshot {
+        let nickname: String
+        let authProvider: String
+        let pushTime: Date            // KST "HH:mm:ss" → today's Date
+        let pushEnabled: Bool
+        let input: BirthInput
+    }
+
+    static func fetchExistingProfile() async throws -> ExistingProfileSnapshot? {
+        guard let userId = try? await SupabaseManager.shared.auth.session.user.id else {
+            throw AuthError.invalidCredential
+        }
+
+        struct SajuRow: Decodable {
+            let birth_calendar: String
+            let birth_year: Int
+            let birth_month: Int
+            let birth_day: Int
+            let birth_hour: Int?
+            let birth_minute: Int?
+            let gender: String
+        }
+        let sajuResp = try await SupabaseManager.shared
+            .from("saju_profiles")
+            .select("birth_calendar, birth_year, birth_month, birth_day, birth_hour, birth_minute, gender")
+            .eq("user_id", value: userId)
+            .execute()
+        let sajuRows = try JSONDecoder().decode([SajuRow].self, from: sajuResp.data)
+        guard let saju = sajuRows.first else { return nil }   // 신규 회원가입 흐름
+
+        struct UserRow: Decodable {
+            let nickname: String
+            let auth_provider: String
+            let push_time: String
+            let push_enabled: Bool
+        }
+        let userResp = try await SupabaseManager.shared
+            .from("users")
+            .select("nickname, auth_provider, push_time, push_enabled")
+            .eq("id", value: userId)
+            .execute()
+        let userRows = try JSONDecoder().decode([UserRow].self, from: userResp.data)
+        guard let user = userRows.first else { return nil }
+
+        var input = BirthInput()
+        input.calendar = saju.birth_calendar == "lunar" ? .lunar : .solar
+        input.year = saju.birth_year
+        input.month = saju.birth_month
+        input.day = saju.birth_day
+        input.hour = saju.birth_hour
+        input.minute = saju.birth_minute
+        input.gender = saju.gender == "male" ? .male : .female
+        input.nickname = user.nickname
+
+        return ExistingProfileSnapshot(
+            nickname: user.nickname,
+            authProvider: user.auth_provider,
+            pushTime: Self.parsePushTimeKST(user.push_time),
+            pushEnabled: user.push_enabled,
+            input: input
+        )
+    }
+
+    /// PostgreSQL `time` ("HH:mm:ss" KST) → 오늘 날짜의 해당 시각 Date.
+    /// 서버 cron이 KST 기준 비교라 복원 시점에도 KST timezone으로 매핑.
+    nonisolated static func parsePushTimeKST(_ str: String) -> Date {
+        let parts = str.split(separator: ":").compactMap { Int($0) }
+        guard parts.count >= 2 else {
+            return Calendar.current.date(from: DateComponents(hour: 8, minute: 0)) ?? Date()
+        }
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Seoul") ?? TimeZone(secondsFromGMT: 9 * 3600)!
+        var comps = cal.dateComponents([.year, .month, .day], from: Date())
+        comps.hour = parts[0]
+        comps.minute = parts[1]
+        return cal.date(from: comps) ?? Date()
+    }
+
     /// 출생정보 입력 후 닉네임만 update (Apple fullName 대신).
     static func updateNickname(_ nickname: String) async throws {
         guard let userId = try? await SupabaseManager.shared.auth.session.user.id else {
