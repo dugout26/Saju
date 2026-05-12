@@ -242,7 +242,7 @@ struct SettingsView: View {
 
     private var supportSection: some View {
         Section(header: Text("지원")) {
-            Link(destination: URL(string: "mailto:support@unse.kr")!) {
+            Link(destination: URL(string: "mailto:contact@mound.run")!) {
                 HStack {
                     Label("문의하기", systemImage: "envelope")
                         .font(.pretendard(14))
