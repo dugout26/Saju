@@ -14,8 +14,8 @@ import run.mound.unse.manse.SajuComputed
 import run.mound.unse.ui.analyzing.AnalyzingView
 import run.mound.unse.ui.birthinfo.BirthInfoView
 import run.mound.unse.ui.login.LoginView
+import run.mound.unse.ui.main.MainTabView
 import run.mound.unse.ui.onboarding.OnboardingView
-import run.mound.unse.ui.saju.SajuResultView
 
 /**
  * 하루결 Android Navigation.
@@ -30,6 +30,7 @@ object Routes {
     const val BIRTH_INFO = "birth_info"
     const val ANALYZING = "analyzing"
     const val SAJU_RESULT = "saju_result"
+    const val MAIN = "main"
 }
 
 @Composable
@@ -59,14 +60,14 @@ fun AppNavigation() {
             val input = pendingInput ?: return@composable
             AnalyzingView(input = input, onComplete = { saju, daeWoon ->
                 pendingSaju = saju to daeWoon
-                nav.navigate(Routes.SAJU_RESULT) {
+                nav.navigate(Routes.MAIN) {
                     popUpTo(Routes.LOGIN) { inclusive = false }
                 }
             })
         }
-        composable(Routes.SAJU_RESULT) {
-            val saju = pendingSaju?.first ?: return@composable
-            SajuResultView(saju = saju, nickname = nickname)
+        composable(Routes.MAIN) {
+            val (saju, daeWoon) = pendingSaju ?: return@composable
+            MainTabView(saju = saju, daeWoon = daeWoon, nickname = nickname)
         }
     }
 }

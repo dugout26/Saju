@@ -47,9 +47,9 @@ import run.mound.unse.ui.theme.Spacing
  * v1은 로컬 Manse 계산 결과만 표시.
  */
 @Composable
-fun SajuResultView(saju: SajuComputed, nickname: String) {
+fun SajuResultView(saju: SajuComputed, nickname: String, modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(Bg)
             .verticalScroll(rememberScrollState())
