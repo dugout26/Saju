@@ -131,8 +131,12 @@ struct RootView: View {
     // bg→fg 복귀 시 @Model의 relationship backing data가 swap되어
     // user.sajuProfile 접근 시 fatal error 발생. PersistentIdentifier로
     // 재조회한 인스턴스는 fresh backing data로 복원됨.
+    //
+    // 로그아웃·계정 삭제 시 users는 빈 배열이 되지만 refreshedUser는 stale 참조로
+    // 남아 OnboardingView 전환을 막던 버그가 있어 users.isEmpty 가드 추가.
     private var currentUser: UserProfile? {
-        refreshedUser ?? users.first
+        guard !users.isEmpty else { return nil }
+        return refreshedUser ?? users.first
     }
 
     var body: some View {
@@ -158,6 +162,10 @@ struct RootView: View {
             guard newPhase == .active,
                   let id = users.first?.persistentModelID else { return }
             refreshedUser = modelContext.model(for: id) as? UserProfile
+        }
+        .onChange(of: users) { _, newUsers in
+            // 로그아웃/계정 삭제 → @Query 빈 배열로 emit → stale refreshedUser 해제.
+            if newUsers.isEmpty { refreshedUser = nil }
         }
     }
 }
