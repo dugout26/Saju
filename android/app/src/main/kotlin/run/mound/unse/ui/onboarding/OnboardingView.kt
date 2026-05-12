@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
@@ -159,7 +160,7 @@ private fun ColorCard(
 ) {
     Box(
         modifier = Modifier
-            .padding(start = offset.first, top = offset.second)
+            .offset(x = offset.first, y = offset.second)
             .size(100.dp, 130.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(color),

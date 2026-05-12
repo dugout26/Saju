@@ -1,11 +1,14 @@
 package run.mound.unse.ui.login
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,18 +21,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import run.mound.unse.ui.components.PrimaryButton
 import run.mound.unse.ui.theme.Bg
 import run.mound.unse.ui.theme.Ink1
 import run.mound.unse.ui.theme.Ink2
 import run.mound.unse.ui.theme.Ink3
+import run.mound.unse.ui.theme.Line
 import run.mound.unse.ui.theme.Spacing
 
 /**
  * 하루결 LoginView — 간편 로그인 화면.
  *
  * Q2 결정 대기 중 (Kakao + Google vs Kakao + Apple).
- * 현재는 UI 골격만 — 실제 SDK 통합은 Q2 합의 후 Session 3.
+ * 현재는 UI 골격만 — 실제 SDK 통합은 Q2 합의 후 Session 3+.
  */
 @Composable
 fun LoginView(onLoggedIn: () -> Unit) {
@@ -53,7 +56,7 @@ fun LoginView(onLoggedIn: () -> Unit) {
         )
         Spacer(Modifier.height(Spacing.xxxl))
 
-        // Kakao 버튼 (TODO Q2 결정 후 실제 SDK 연결)
+        // Kakao
         SocialButton(
             label = "카카오로 시작하기",
             background = Color(0xFFFEE500),
@@ -61,7 +64,8 @@ fun LoginView(onLoggedIn: () -> Unit) {
             onClick = onLoggedIn
         )
         Spacer(Modifier.height(Spacing.md))
-        // Google 버튼 (Q2 잠정 — Apple Sign-In Android는 web view라 UX 어색)
+
+        // Google (Q2 잠정)
         SocialButton(
             label = "Google로 계속하기",
             background = Color.White,
@@ -88,6 +92,17 @@ private fun SocialButton(
     border: Boolean = false,
     onClick: () -> Unit
 ) {
-    PrimaryButton(title = label, color = background, onClick = onClick)
-    // TODO: foreground 색 + border 적용은 PrimaryButton 확장 시
+    val base = Modifier
+        .fillMaxWidth()
+        .height(52.dp)
+        .clip(RoundedCornerShape(12.dp))
+        .background(background)
+    val withBorder = if (border) base.border(1.dp, Line, RoundedCornerShape(12.dp)) else base
+
+    Box(
+        modifier = withBorder.clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, color = foreground, style = MaterialTheme.typography.titleLarge)
+    }
 }
