@@ -96,7 +96,8 @@ struct LoginView: View {
 
     /// 공통 signin 후처리 — 서버에 사주 프로필이 이미 있으면 로컬 복원, 없으면 BirthInfoView 진입.
     /// 재로그인 시 로컬 SwiftData가 비어있어도 서버 데이터로 즉시 사용 가능하도록.
-    private func performSignIn(_ signIn: @escaping () async throws -> UUID) async {
+    /// signIn closure는 같은 async context 안에서 즉시 await되므로 @escaping 불필요.
+    private func performSignIn(_ signIn: () async throws -> UUID) async {
         isAuthenticating = true
         errorMessage = nil
         defer { isAuthenticating = false }

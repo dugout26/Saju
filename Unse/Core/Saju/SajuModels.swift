@@ -99,7 +99,7 @@ struct DaeWoon: Identifiable, Codable, Sendable {
 }
 
 // MARK: - 생년월일 입력 데이터
-struct BirthInput {
+struct BirthInput: Sendable {
     var calendar: BirthCalendar = .solar
     var year: Int = 1996
     var month: Int = 3

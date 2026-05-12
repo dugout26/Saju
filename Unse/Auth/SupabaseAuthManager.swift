@@ -158,7 +158,8 @@ enum SupabaseAuthManager {
     /// 재로그인 시 서버에 이미 저장된 사주 프로필 복원용.
     /// saju_profiles 행이 없으면(신규 회원가입 흐름) nil → 호출자가 BirthInfoView 진입.
     /// 있으면 BirthInput + push 설정 반환 → Manse 재계산해 로컬 SwiftData 복원.
-    struct ExistingProfileSnapshot {
+    /// Sendable — fetchExistingProfile()이 async 경계를 넘기므로 Swift 6 strict concurrency 요구.
+    struct ExistingProfileSnapshot: Sendable {
         let nickname: String
         let authProvider: String
         let pushTime: Date            // KST "HH:mm:ss" → today's Date
@@ -222,14 +223,16 @@ enum SupabaseAuthManager {
     }
 
     /// PostgreSQL `time` ("HH:mm:ss" KST) → 오늘 날짜의 해당 시각 Date.
-    /// 서버 cron이 KST 기준 비교라 복원 시점에도 KST timezone으로 매핑.
+    /// 서버 cron이 KST 기준 비교라 복원 시점·fallback 모두 KST timezone으로 통일.
     nonisolated static func parsePushTimeKST(_ str: String) -> Date {
-        let parts = str.split(separator: ":").compactMap { Int($0) }
-        guard parts.count >= 2 else {
-            return Calendar.current.date(from: DateComponents(hour: 8, minute: 0)) ?? Date()
-        }
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone(identifier: "Asia/Seoul") ?? TimeZone(secondsFromGMT: 9 * 3600)!
+
+        let parts = str.split(separator: ":").compactMap { Int($0) }
+        guard parts.count >= 2 else {
+            // 깨진 입력 fallback도 KST 기준 8:00으로 — Calendar.current는 runner timezone에 의존해 일관성 깨짐.
+            return cal.date(from: DateComponents(hour: 8, minute: 0)) ?? Date()
+        }
         var comps = cal.dateComponents([.year, .month, .day], from: Date())
         comps.hour = parts[0]
         comps.minute = parts[1]

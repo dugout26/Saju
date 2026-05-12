@@ -76,11 +76,12 @@ struct SupabaseAuthManagerTests {
         #expect(comps.minute == 0)
     }
 
-    @Test("parsePushTimeKST — 깨진 문자열 → 8:00 fallback")
+    @Test("parsePushTimeKST — 깨진 문자열 → KST 8:00 fallback")
     func parsePushTime_invalidString_fallback() {
         let result = SupabaseAuthManager.parsePushTimeKST("invalid")
-        let comps = Calendar.current.dateComponents([.hour, .minute], from: result)
-        // Calendar.current 기반 fallback이라 timezone-independent 검증 어려움 — 8시 hour만 확인.
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Seoul")!
+        let comps = cal.dateComponents([.hour, .minute], from: result)
         #expect(comps.hour == 8)
         #expect(comps.minute == 0)
     }
