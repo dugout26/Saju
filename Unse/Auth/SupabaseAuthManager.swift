@@ -224,19 +224,22 @@ enum SupabaseAuthManager {
 
     /// PostgreSQL `time` ("HH:mm:ss" KST) → 오늘 날짜의 해당 시각 Date.
     /// 서버 cron이 KST 기준 비교라 복원 시점·fallback 모두 KST timezone으로 통일.
+    /// 시·분 범위(`0...23`, `0...59`) 벗어나면 깨진 입력으로 간주 → 8:00 fallback.
     nonisolated static func parsePushTimeKST(_ str: String) -> Date {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone(identifier: "Asia/Seoul") ?? TimeZone(secondsFromGMT: 9 * 3600)!
+        let fallback = cal.date(from: DateComponents(hour: 8, minute: 0)) ?? Date()
 
         let parts = str.split(separator: ":").compactMap { Int($0) }
-        guard parts.count >= 2 else {
-            // 깨진 입력 fallback도 KST 기준 8:00으로 — Calendar.current는 runner timezone에 의존해 일관성 깨짐.
-            return cal.date(from: DateComponents(hour: 8, minute: 0)) ?? Date()
-        }
+        guard parts.count >= 2,
+              (0...23).contains(parts[0]),
+              (0...59).contains(parts[1])
+        else { return fallback }
+
         var comps = cal.dateComponents([.year, .month, .day], from: Date())
         comps.hour = parts[0]
         comps.minute = parts[1]
-        return cal.date(from: comps) ?? Date()
+        return cal.date(from: comps) ?? fallback
     }
 
     /// 출생정보 입력 후 닉네임만 update (Apple fullName 대신).

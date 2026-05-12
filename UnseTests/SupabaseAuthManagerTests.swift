@@ -85,4 +85,14 @@ struct SupabaseAuthManagerTests {
         #expect(comps.hour == 8)
         #expect(comps.minute == 0)
     }
+
+    @Test("parsePushTimeKST — 범위 오류 '25:99:00' → KST 8:00 fallback")
+    func parsePushTime_outOfRange_fallback() {
+        let result = SupabaseAuthManager.parsePushTimeKST("25:99:00")
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Seoul")!
+        let comps = cal.dateComponents([.hour, .minute], from: result)
+        #expect(comps.hour == 8)
+        #expect(comps.minute == 0)
+    }
 }
