@@ -113,10 +113,13 @@ xcrun devicectl device install app --device 9FE5BF11-2185-5B72-92A9-19AEF11C7BD7
 
 - `2cr-Andy` (회사컴 기본) + `dugout26` (이 repo 권한자) 두 계정 등록.
 - 머지·푸시 전 `gh auth switch -u dugout26` 필요.
-- git push 시 osxkeychain이 2cr-Andy로 캐시되어 있어 토큰 명시 push 패턴 사용:
+- osxkeychain이 잘못된 계정으로 캐시돼 있으면 git push 실패. 표준 해결책:
   ```bash
-  git push "https://x-access-token:$(gh auth token)@github.com/dugout26/Saju.git" <branch>
+  gh auth setup-git          # gh의 credential helper로 git 설정
+  # 이후 평범하게: git push origin <branch>
   ```
+  `setup-git`이 keychain의 stale 캐시를 정리하고 active gh 계정 토큰을 쓰게 함.
+  URL에 토큰 embed하는 방식은 셸 히스토리/프로세스 목록에 토큰 노출되므로 피할 것.
 
 ---
 
