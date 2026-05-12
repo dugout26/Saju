@@ -30,17 +30,38 @@ struct UnseApp: App {
     @ViewBuilder
     private var rootContent: some View {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-preview-saju") {
-                let input = BirthInput(year: 1990, month: 3, day: 15, hour: 12, minute: 0, gender: .male, nickname: "테스트")
-                let result = Manse.calculate(year: input.year, month: input.month, day: input.day, hour: input.hour, gender: input.gender)
-                let profile = SajuProfile(input: input, saju: result.saju, daeWoon: result.daeWoon)
-                if let restored = profile.computed {
-                    NavigationStack {
-                        SajuResultView(saju: restored, daeWoon: profile.daeWoon, nickname: input.nickname)
-                    }
-                } else {
-                    Text("Reconstruction 실패")
+        let args = ProcessInfo.processInfo.arguments
+        if args.contains("-preview-saju") {
+            let input = BirthInput(year: 1990, month: 3, day: 15, hour: 12, minute: 0, gender: .male, nickname: "테스트")
+            let result = Manse.calculate(year: input.year, month: input.month, day: input.day, hour: input.hour, gender: input.gender)
+            let profile = SajuProfile(input: input, saju: result.saju, daeWoon: result.daeWoon)
+            if let restored = profile.computed {
+                NavigationStack {
+                    SajuResultView(saju: restored, daeWoon: profile.daeWoon, nickname: input.nickname)
                 }
+            } else {
+                Text("Reconstruction 실패")
+            }
+        } else if args.contains("-preview-login") {
+            // App Store screenshot용 — onboarding 우회하고 LoginView 직접 표시.
+            NavigationStack {
+                LoginView()
+            }
+        } else if args.contains("-preview-paywall") {
+            // App Store screenshot용 — PaywallView 직접 표시.
+            PaywallView().environment(SubscriptionManager.shared)
+        } else if args.contains("-preview-timeline") {
+            // App Store screenshot용 — TimelineView를 mock user로 직접 표시 (대운 차트 노출).
+            NavigationStack {
+                TimelineView(user: Self.makePreviewUser())
+            }
+            .environment(SubscriptionManager.shared)
+        } else if args.contains("-preview-daily") {
+            // App Store screenshot용 — DailyFortuneView를 mock user로 직접 표시.
+            NavigationStack {
+                DailyFortuneView(user: Self.makePreviewUser())
+            }
+            .environment(SubscriptionManager.shared)
         } else {
             RootView()
         }
