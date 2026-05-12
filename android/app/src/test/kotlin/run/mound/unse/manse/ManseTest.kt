@@ -136,4 +136,41 @@ class ManseTest {
             assertEquals(10, dw[i].startAge - dw[i - 1].startAge)
         }
     }
+
+    // MARK: - CR-4 lunar 명시 에러
+
+    @Test
+    fun `lunar input → IllegalArgumentException (변환 미구현)`() {
+        try {
+            Manse.calculate(
+                year = 1990, month = 3, day = 15,
+                calendar = BirthCalendar.LUNAR
+            )
+            error("Expected IllegalArgumentException not thrown")
+        } catch (_: IllegalArgumentException) {
+            // OK
+        }
+    }
+
+    // MARK: - CR-8 BirthInput.isValid (LocalDate 검증)
+
+    @Test
+    fun `BirthInput 유효 — 1990-03-15`() {
+        assertEquals(true, BirthInput(year = 1990, month = 3, day = 15).isValid)
+    }
+
+    @Test
+    fun `BirthInput 무효 — 2월 30일`() {
+        assertEquals(false, BirthInput(year = 1990, month = 2, day = 30).isValid)
+    }
+
+    @Test
+    fun `BirthInput 무효 — 연도 1899`() {
+        assertEquals(false, BirthInput(year = 1899, month = 3, day = 15).isValid)
+    }
+
+    @Test
+    fun `BirthInput 무효 — hour 24`() {
+        assertEquals(false, BirthInput(year = 1990, month = 3, day = 15, hour = 24).isValid)
+    }
 }

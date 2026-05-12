@@ -1,4 +1,5 @@
 .gradle/
+.kotlin/
 build/
 .idea/
 local.properties
@@ -7,3 +8,12 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
+
+# Secrets (Firebase, signing) — 절대 커밋 X
+google-services.json
+*.jks
+*.keystore
+signing.properties
+keystore.properties
+.env
+.env.*

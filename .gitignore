@@ -24,7 +24,7 @@ DerivedData/
 .env.*
 Secrets.plist
 ios/Config.local.xcconfig
-ios/GoogleService-Info.plist
+ios/Unse/GoogleService-Info.plist
 *.p8
 *.p12
 

@@ -32,7 +32,13 @@ object Manse {
         var m = month
         var d = day
         if (calendar == BirthCalendar.LUNAR) {
-            lunarToSolar(y, m, d)?.let { (ny, nm, nd) -> y = ny; m = nm; d = nd }
+            // CR-4: silent null fallback 금지. lunar 변환 미구현 상태에서 lunar input은 명시적 에러로
+            // 호출자가 인지하게 만든다. 양력으로 호출하거나 lunarToSolar 구현 완료 후 재시도.
+            val converted = lunarToSolar(y, m, d)
+                ?: throw IllegalArgumentException(
+                    "Lunar calendar conversion not yet implemented. Use calendar=SOLAR."
+                )
+            y = converted.first; m = converted.second; d = converted.third
         }
 
         val yearPillar = computeYearPillar(y, m, d)
@@ -163,11 +169,17 @@ object Manse {
     ): Int {
         val termDay = approximateSolarTermDay(year, month)
         return if (forward) {
-            val nextMonth = if (month == 12) 1 else month + 1
-            val nextYear = if (month == 12) year + 1 else year
-            val nextTermDay = approximateSolarTermDay(nextYear, nextMonth)
-            val dim = daysInMonth(year, month)
-            (dim - day) + nextTermDay
+            // CR-5: forward 분기에서 이번 달 절기가 아직 안 지난 경우 (day < termDay) 처리.
+            // iOS Manse.swift는 이 케이스를 동일하게 처리하지 않아 보수적으로 추가.
+            if (day < termDay) {
+                termDay - day
+            } else {
+                val nextMonth = if (month == 12) 1 else month + 1
+                val nextYear = if (month == 12) year + 1 else year
+                val nextTermDay = approximateSolarTermDay(nextYear, nextMonth)
+                val dim = daysInMonth(year, month)
+                (dim - day) + nextTermDay
+            }
         } else {
             if (day >= termDay) {
                 day - termDay

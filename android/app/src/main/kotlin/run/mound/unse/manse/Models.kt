@@ -1,5 +1,10 @@
 package run.mound.unse.manse
 
+import java.time.DateTimeException
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.Year
+
 // MARK: - 오행 (Five Elements)
 enum class Element(val character: String, val korean: String) {
     WOOD("木", "목"),
@@ -109,6 +114,22 @@ data class BirthInput(
     val gender: Gender = Gender.FEMALE,
     val nickname: String = ""
 ) {
+    /**
+     * 출생 정보 유효성 검사.
+     * - 연도: 1900~현재 (CR-7: 2025 hardcode 대신 동적 currentYear)
+     * - 날짜: LocalDate로 실존 검증 (CR-8: 2월 30일 같은 invalid date 차단)
+     * - 시각: hour 0..23, minute 0..59 + LocalTime 검증
+     */
     val isValid: Boolean
-        get() = year in 1900..2025 && month in 1..12 && day in 1..31
+        get() {
+            val currentYear = Year.now().value
+            if (year !in 1900..currentYear) return false
+            return try {
+                LocalDate.of(year, month, day)
+                if (hour != null) LocalTime.of(hour, minute ?: 0)
+                true
+            } catch (_: DateTimeException) {
+                false
+            }
+        }
 }
