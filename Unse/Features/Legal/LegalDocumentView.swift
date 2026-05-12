@@ -88,7 +88,7 @@ struct LegalDocumentView: View {
 
             5. 이용자 권리
             • 언제든지 회원 탈퇴를 통해 모든 정보 삭제 가능
-            • 개인정보 열람·정정·삭제 요청: support@unse.kr
+            • 개인정보 열람·정정·삭제 요청: contact@mound.run
 
             6. 인공지능(AI) 콘텐츠 고지
             본 서비스의 풀이 텍스트는 AI(OpenAI GPT 모델)가 사주 정보를 기반으로 생성한 결과입니다.
