@@ -44,3 +44,13 @@ Unse.xcodeproj/
 
 # fastlane / ASC credentials (절대 커밋 X)
 secrets/
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+android/local.properties
+android/*.iml
+android/captures/
+
