@@ -1,7 +1,7 @@
-import AuthenticationServices
 import SwiftUI
 import FirebaseCrashlytics
 
+@MainActor
 struct LoginView: View {
     @State private var isAuthenticating = false
     @State private var errorMessage: String?
@@ -32,9 +32,9 @@ struct LoginView: View {
             Button(action: signInWithKakao) {
                 HStack(spacing: 8) {
                     Image(systemName: "message.fill")
-                        .font(.system(size: 18))
+                        .font(.system(size: 20, weight: .bold))
                     Text("카카오로 시작하기")
-                        .font(.pretendard(18, .semibold))
+                        .font(.pretendard(20, .bold))
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
@@ -44,19 +44,22 @@ struct LoginView: View {
             }
             .disabled(isAuthenticating)
 
-            SignInWithAppleButton(.continue) { _ in
-                // 실제 호출은 onCompletion 대신 SupabaseAuthManager에서 처리 (nonce 필요)
-            } onCompletion: { _ in
-                // unused
-            }
-            .signInWithAppleButtonStyle(.black)
-            .frame(maxWidth: .infinity)
-            .frame(height: 52)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay {
-                Button(action: signInWithApple) {
-                    Color.clear
+            // 커스텀 Apple 버튼 — Kakao와 동일한 Pretendard 적용 위해 SignInWithAppleButton 대신 사용.
+            // Apple HIG 준수: `applelogo` 공식 SF Symbol + 표준 localized 텍스트("Apple로 계속하기" =
+            // "Continue with Apple"의 공식 한국어 번역) + 검정 배경. "Apple로 시작하기"는 비표준이라 금지.
+            // 실제 auth는 AppleAuthManager의 ASAuthorizationController가 처리 (signInWithApple 진입점).
+            Button(action: signInWithApple) {
+                HStack(spacing: 8) {
+                    Image(systemName: "applelogo")
+                        .font(.system(size: 20, weight: .bold))
+                    Text("Apple로 계속하기")
+                        .font(.pretendard(20, .bold))
                 }
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .foregroundStyle(.white)
+                .background(Color.black)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
             .disabled(isAuthenticating)
 
