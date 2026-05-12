@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// 약관·개인정보처리방침 in-app 화면 (App Store 심사 표준).
-/// TODO: 실제 문구는 출시 전 변호사 검토 + 사용자 최종 작성. 아래는 placeholder.
+/// 약관·개인정보처리방침·면책 고지 in-app 화면 (App Store 심사 표준).
+/// v1 출시용 — 사주 카테고리 표준 문구. 향후 변호사 검토로 정교화.
 struct LegalDocumentView: View {
     enum Kind {
         case terms, privacy, disclaimer
@@ -29,7 +29,7 @@ struct LegalDocumentView: View {
                     .foregroundStyle(.ink2)
                     .lineSpacing(6)
 
-                Text("(본 문서는 placeholder입니다. 출시 전 최종본으로 교체될 예정입니다.)")
+                Text("시행일: 2026년 5월 1일")
                     .font(.pretendard(11))
                     .foregroundStyle(.ink3)
                     .padding(.top, 12)
@@ -48,7 +48,7 @@ struct LegalDocumentView: View {
         case .terms:
             return """
             제1조 (목적)
-            본 약관은 운세(이하 "회사")가 제공하는 사주·운세 서비스(이하 "서비스") 이용과 관련하여 회사와 이용자 간의 권리·의무 및 책임 사항을 규정함을 목적으로 합니다.
+            본 약관은 하루결(이하 "회사")가 제공하는 사주·운세 서비스(이하 "서비스") 이용과 관련하여 회사와 이용자 간의 권리·의무 및 책임 사항을 규정함을 목적으로 합니다.
 
             제2조 (용어의 정의)
             ① "서비스"란 사주 8글자 풀이, 매일 운세, AI 챗봇 등 회사가 제공하는 운세 콘텐츠 전반을 말합니다.
