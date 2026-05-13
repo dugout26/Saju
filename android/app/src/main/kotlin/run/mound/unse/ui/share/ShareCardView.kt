@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
@@ -51,6 +52,7 @@ import run.mound.unse.ui.theme.Ink3
 import run.mound.unse.ui.theme.LavenderDeep
 import run.mound.unse.ui.theme.LavenderSoft
 import run.mound.unse.ui.theme.Surface
+import run.mound.unse.ui.theme.UnseTheme
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -246,5 +248,15 @@ private fun LuckItem(icon: String, label: String, value: String, modifier: Modif
         Text(icon, fontSize = 20.sp)
         Text(label, style = MaterialTheme.typography.labelSmall, color = Ink3)
         Text(value, style = MaterialTheme.typography.titleSmall, color = Ink1)
+    }
+}
+
+@Preview(showBackground = true, widthDp = 320, heightDp = 400)
+@Composable
+private fun ShareCardPreview() {
+    UnseTheme {
+        Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            ShareCard(nickname = "프리뷰")
+        }
     }
 }

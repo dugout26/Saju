@@ -1,8 +1,10 @@
 # 하루결 (Unse)
 
-> 자평명리(子平命理) 기반 매일 운세 + AI 풀이 iOS 앱
+> 자평명리(子平命理) 기반 매일 운세 + AI 풀이 모바일 앱 (iOS + Android)
 
-SwiftUI · iOS 17+ · Swift 6 · SwiftData · Supabase · OpenAI
+iOS: SwiftUI · iOS 17+ · Swift 6 · SwiftData
+Android: Jetpack Compose · Kotlin 2.0 · Material 3
+공통: Supabase · OpenAI
 
 ---
 
@@ -21,11 +23,12 @@ SwiftUI · iOS 17+ · Swift 6 · SwiftData · Supabase · OpenAI
 | 영역 | 선택 |
 |---|---|
 | iOS | SwiftUI · iOS 17+ · Swift 6 (strict concurrency) |
-| 로컬 저장 | SwiftData (VersionedSchema) |
+| Android | Jetpack Compose · Kotlin 2.0 · Material 3 · minSdk 26 (Android 8.0+) |
+| 로컬 저장 | iOS: SwiftData (VersionedSchema) / Android: 향후 Room |
 | 백엔드 | Supabase (Postgres + Edge Functions + Auth) |
 | AI | OpenAI GPT-4o-mini |
-| 결제 | StoreKit 2 + App Store Server API JWT(ES256) 영수증 검증 |
-| 푸시 | FCM (APNs 경유) + pg_cron broadcast |
+| 결제 | iOS: StoreKit 2 + ASC JWT(ES256) / Android: 향후 Play Billing |
+| 푸시 | FCM (iOS는 APNs 경유) + pg_cron broadcast |
 | 분석 | Firebase Crashlytics + Analytics + Performance |
 | 광고 | Google AdMob |
 | 인증 | Apple Sign-In + Kakao SDK → Supabase Auth |
@@ -103,6 +106,37 @@ bundle exec fastlane bump type:patch  # version bump
 ```
 
 자세한 사전 작업: [HANDOFF.md](HANDOFF.md)
+
+## Android
+
+> 현재: Compose UI + 만세력 도메인 포팅 완료. Auth/Network/Storage/Push/Billing/Ads는 SDK 정책 결정 후 통합 예정.
+> 진행 상태 + 사용자 환경 작업: [HANDOFF.md §9](HANDOFF.md)
+
+### 사전 요구사항
+
+- Android Studio (Ladybug 이상)
+- JDK 17 (`brew install --cask temurin`)
+- Android SDK (compileSdk 35, minSdk 26)
+
+### 빌드
+
+```bash
+cd android
+./gradlew :app:assembleDebug        # debug APK
+./gradlew :app:assembleRelease      # release APK (R8 + ProGuard)
+./gradlew :app:testDebugUnitTest    # 29 unit tests (만세력 도메인)
+./gradlew :app:detekt               # 린트 (baseline 적용)
+```
+
+### 만세력 동등성
+
+`android/app/src/main/kotlin/run/mound/unse/manse/` 는 iOS `Unse/Core/Saju/` 의 1:1 Kotlin 포트.
+fixture 케이스 (1990-03-15, 2000-01-01, 1985-08-25, 입춘 경계, 시주 등)가 iOS Swift 결과와 동일하게 통과해야 함 — `ManseTest.kt` 29개 검증.
+
+### 산출물
+
+- `android/app/build/outputs/apk/debug/app-debug.apk` — 에뮬레이터/실기기 sideload
+- `android/app/build/outputs/apk/release/app-release.apk` — R8 minify + adaptive icon + splash
 
 ## 문서
 

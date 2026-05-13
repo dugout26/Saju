@@ -32,6 +32,8 @@ style:
     maxLineLength: 140
   ForbiddenComment:
     active: false
+  UnusedPrivateMember:
+    ignoreAnnotated: ['Preview']   # @Preview 함수는 IDE에서만 호출 (Android Studio Preview)
 
 naming:
   FunctionNaming:
