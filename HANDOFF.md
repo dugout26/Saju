@@ -164,12 +164,15 @@ supabase functions deploy asn-v2-webhook
 
 | 항목 | 상태 | 비고 |
 |---|---|---|
-| Compose UI 모든 화면 | ✅ | iOS 1:1 — Onboarding/Login/BirthInfo/Analyzing/MainTab(5탭)/EditSaju/Share/ForceUpdate |
-| 만세력 엔진 + 20+개 단위 테스트 | ✅ | iOS 결과와 1:1 |
+| Compose UI 모든 화면 | ✅ | iOS 1:1 — Onboarding/Login/BirthInfo/Analyzing/MainTab(5탭)/EditSaju/Share/ForceUpdate/Legal |
+| 만세력 엔진 + 29개 단위 테스트 | ✅ | iOS 양력 fixture 1:1. boundary (입춘/대운 forward/backward/KST TZ) 포함 |
 | Release build + R8/ProGuard | ✅ | `./gradlew :app:assembleRelease` 통과 |
 | App icon (Adaptive) | ✅ | iOS PNG 재활용 — `mipmap-{dpi}/ic_launcher_foreground.png` |
 | Splash screen | ✅ | core-splashscreen 1.0.1 + Theme.Unse.Starting |
 | detekt + baseline | ✅ | `./gradlew :app:detekt` 통과 (37건 baseline) |
+| Compose @Preview | ✅ | PrimaryButton/Card/Tag/Segment/CheckBox/ShareCard — IDE 검수용 |
+| Navigation 안전성 | ✅ | pendingInput/pendingSaju null → BIRTH_INFO LaunchedEffect redirect (블랭크 화면 방지) |
+| Legal compliance | ✅ | Settings/Paywall → LegalDocumentView 라우팅 (이용약관/개인정보/면책) |
 | Q1-Q6 SDK 정책 | ⏳ | CodeRabbit 답변 대기 (Auth/Network/DB/Push/Billing/Ads) |
 
 ### 9-2. Android 사용자 환경 작업
