@@ -6,12 +6,18 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Chat
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,57 +35,69 @@ import run.mound.unse.ui.theme.Line
 import run.mound.unse.ui.theme.Spacing
 
 /**
- * 하루결 LoginView — 간편 로그인 화면.
+ * 하루결 LoginView — 간편 로그인.
+ * iOS LoginView.swift 1:1 매칭:
+ * - Spacer로 상단/중앙/하단 영역 분배
+ * - Kakao(노란, 검정 텍스트) + Google(흰, 검정 텍스트 + 보더) 버튼
+ * - 아이콘 + 텍스트 가로 배치
+ * - 하단 약관 안내
  *
- * Q2 결정 대기 중 (Kakao + Google vs Kakao + Apple).
- * 현재는 UI 골격만 — 실제 SDK 통합은 Q2 합의 후 Session 3+.
+ * Q2 결정 대기 — 실제 SDK 통합은 Session 4+.
  */
 @Composable
 fun LoginView(onLoggedIn: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().background(Bg).padding(horizontal = 24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        verticalArrangement = Arrangement.spacedBy(Spacing.xxl)
     ) {
-        Text(
-            "시작하기",
-            style = MaterialTheme.typography.displayMedium,
-            color = Ink1,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(Spacing.md))
-        Text(
-            "나만의 사주 분석을 위해\n간편 로그인이 필요해요",
-            color = Ink2,
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(Spacing.xxxl))
+        Spacer(Modifier.weight(1f))
+
+        // 헤더
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                "시작하기",
+                style = MaterialTheme.typography.displayMedium,
+                color = Ink1,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(Spacing.md))
+            Text(
+                "나만의 사주 분석을 위해\n간편 로그인이 필요해요",
+                color = Ink2,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
+        }
+
+        Spacer(Modifier.weight(1f))
 
         // Kakao
         SocialButton(
             label = "카카오로 시작하기",
             background = Color(0xFFFEE500),
             foreground = Color.Black,
+            icon = Icons.Outlined.Chat,
             onClick = onLoggedIn
         )
-        Spacer(Modifier.height(Spacing.md))
 
-        // Google (Q2 잠정)
+        // Google
         SocialButton(
             label = "Google로 계속하기",
             background = Color.White,
             foreground = Color.Black,
             border = true,
+            // 임시 아이콘 — Q2 결정 후 Google G 로고로 교체
+            icon = null,
             onClick = onLoggedIn
         )
 
-        Spacer(Modifier.height(Spacing.xxl))
+        // 약관 안내 (하단)
         Text(
             "로그인 시 이용약관 및 개인정보처리방침에 동의합니다",
             color = Ink3,
             style = MaterialTheme.typography.labelSmall,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
         )
     }
 }
@@ -90,6 +108,7 @@ private fun SocialButton(
     background: Color,
     foreground: Color,
     border: Boolean = false,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     onClick: () -> Unit
 ) {
     val base = Modifier
@@ -103,6 +122,16 @@ private fun SocialButton(
         modifier = withBorder.clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(label, color = foreground, style = MaterialTheme.typography.titleLarge)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+            if (icon != null) {
+                Icon(icon, contentDescription = null, tint = foreground, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(
+                label,
+                color = foreground,
+                style = MaterialTheme.typography.titleLarge
+            )
+        }
     }
 }
