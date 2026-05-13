@@ -1,6 +1,7 @@
 package run.mound.unse.ui.daily
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,7 +50,12 @@ import java.time.LocalDate
  * AI 풀이는 Q3/Q4 합의 + Supabase Kotlin SDK 통합 후 wiring.
  */
 @Composable
-fun DailyFortuneView(saju: SajuComputed, nickname: String, modifier: Modifier = Modifier) {
+fun DailyFortuneView(
+    saju: SajuComputed,
+    nickname: String,
+    modifier: Modifier = Modifier,
+    onShare: (() -> Unit)? = null
+) {
     val today = LocalDate.now()
     val dayPillar = Manse.dailyPillar(today.year, today.monthValue, today.dayOfMonth)
 
@@ -71,12 +77,32 @@ fun DailyFortuneView(saju: SajuComputed, nickname: String, modifier: Modifier = 
             .padding(Spacing.xxl),
         verticalArrangement = Arrangement.spacedBy(Spacing.xl)
     ) {
-        Tag(text = "${today.monthValue}월 ${today.dayOfMonth}일 · ${today.dayOfWeek.name.take(3)}")
-        Text(
-            "오늘의\n행운 색",
-            style = MaterialTheme.typography.displayMedium,
-            color = Ink1
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Tag(text = "${today.monthValue}월 ${today.dayOfMonth}일 · ${today.dayOfWeek.name.take(3)}")
+                Spacer(Modifier.height(Spacing.md))
+                Text(
+                    "오늘의\n행운 색",
+                    style = MaterialTheme.typography.displayMedium,
+                    color = Ink1
+                )
+            }
+            if (onShare != null) {
+                Text(
+                    "공유",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = LavenderDeep,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Lavender.copy(alpha = 0.3f))
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .clickable { onShare() }
+                )
+            }
+        }
 
         // 행운의 색 카드
         UnseCard(padding = Spacing.xxxl) {

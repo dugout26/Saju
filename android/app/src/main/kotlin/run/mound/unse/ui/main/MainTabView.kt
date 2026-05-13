@@ -44,7 +44,9 @@ fun MainTabView(
     saju: SajuComputed,
     daeWoon: List<DaeWoon>,
     nickname: String,
-    isPremium: Boolean = false
+    isPremium: Boolean = false,
+    onEditSaju: (() -> Unit)? = null,
+    onShare: (() -> Unit)? = null
 ) {
     var selected by remember { mutableStateOf(Tab.SAJU) }
 
@@ -64,11 +66,21 @@ fun MainTabView(
     ) { padding ->
         val mod = Modifier.padding(padding)
         when (selected) {
-            Tab.DAILY -> DailyFortuneView(saju = saju, nickname = nickname, modifier = mod)
+            Tab.DAILY -> DailyFortuneView(
+                saju = saju,
+                nickname = nickname,
+                modifier = mod,
+                onShare = onShare
+            )
             Tab.SAJU -> SajuResultView(saju = saju, nickname = nickname, modifier = mod)
             Tab.TIMELINE -> TimelineView(daeWoon = daeWoon, isPremium = isPremium, modifier = mod)
             Tab.CHAT -> ChatView(modifier = mod)
-            Tab.SETTINGS -> SettingsView(nickname = nickname, isPremium = isPremium, modifier = mod)
+            Tab.SETTINGS -> SettingsView(
+                nickname = nickname,
+                isPremium = isPremium,
+                modifier = mod,
+                onEditSaju = onEditSaju
+            )
         }
     }
 }

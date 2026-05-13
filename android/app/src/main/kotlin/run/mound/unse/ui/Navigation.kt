@@ -16,6 +16,8 @@ import run.mound.unse.ui.birthinfo.BirthInfoView
 import run.mound.unse.ui.login.LoginView
 import run.mound.unse.ui.main.MainTabView
 import run.mound.unse.ui.onboarding.OnboardingView
+import run.mound.unse.ui.settings.EditSajuView
+import run.mound.unse.ui.share.ShareCardView
 
 /**
  * 하루결 Android Navigation.
@@ -31,6 +33,8 @@ object Routes {
     const val ANALYZING = "analyzing"
     const val SAJU_RESULT = "saju_result"
     const val MAIN = "main"
+    const val EDIT_SAJU = "edit_saju"
+    const val SHARE = "share"
 }
 
 @Composable
@@ -67,7 +71,28 @@ fun AppNavigation() {
         }
         composable(Routes.MAIN) {
             val (saju, daeWoon) = pendingSaju ?: return@composable
-            MainTabView(saju = saju, daeWoon = daeWoon, nickname = nickname)
+            MainTabView(
+                saju = saju,
+                daeWoon = daeWoon,
+                nickname = nickname,
+                onEditSaju = { nav.navigate(Routes.EDIT_SAJU) },
+                onShare = { nav.navigate(Routes.SHARE) }
+            )
+        }
+        composable(Routes.EDIT_SAJU) {
+            val current = pendingInput ?: return@composable
+            EditSajuView(
+                initial = current,
+                onSave = { updated ->
+                    // Q3/Q4 wiring 전 — 로컬 state만 갱신, recompute는 후속.
+                    pendingInput = updated
+                    nickname = updated.nickname.ifBlank { "사용자" }
+                    nav.popBackStack()
+                }
+            )
+        }
+        composable(Routes.SHARE) {
+            ShareCardView(nickname = nickname)
         }
     }
 }

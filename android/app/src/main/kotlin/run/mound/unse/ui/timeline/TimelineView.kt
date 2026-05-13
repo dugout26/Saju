@@ -102,23 +102,66 @@ private fun DaeWoonChart(daeWoon: List<DaeWoon>, currentAge: Int) {
     UnseCard {
         Text("대운 그래프", style = MaterialTheme.typography.titleLarge, color = Ink1)
         Spacer(Modifier.height(Spacing.md))
+        // iOS DaeWoonChart.swift 1:1 — fortuneScore (stemScore + sin wave) 기반 막대 + 천간/지지 annotation
+        val maxHeight = 160.dp
         Row(
-            modifier = Modifier.fillMaxWidth().height(120.dp),
+            modifier = Modifier.fillMaxWidth().height(maxHeight),
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.Bottom
         ) {
-            daeWoon.forEach { dw ->
+            daeWoon.forEachIndexed { idx, dw ->
                 val isCurrent = dw.startAge <= currentAge && currentAge < dw.startAge + 10
-                Box(
-                    modifier = Modifier
-                        .width(20.dp)
-                        .height((40 + dw.startAge).dp.coerceAtMost(120.dp))
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(if (isCurrent) LavenderDeep else Lavender.copy(alpha = 0.5f))
-                )
+                val score = fortuneScore(dw.pillar.stem.element, idx)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Bottom,
+                    modifier = Modifier.height(maxHeight)
+                ) {
+                    // 천간/지지 annotation
+                    Text(
+                        dw.pillar.stem.character,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isCurrent) LavenderDeep else Ink3
+                    )
+                    Text(
+                        dw.pillar.branch.character,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isCurrent) LavenderDeep else Ink3
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(20.dp)
+                            .height((score * 120).dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (isCurrent) LavenderDeep else Lavender.copy(alpha = 0.6f))
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "${dw.startAge}세",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Ink3
+                    )
+                }
             }
         }
     }
+}
+
+/**
+ * iOS DaeWoonChart.fortuneScore 1:1 포팅.
+ * stemScore (오행별 기본값) + sin wave (인덱스 기반) → clamp(0.4..1.0).
+ */
+private fun fortuneScore(element: run.mound.unse.manse.Element, index: Int): Float {
+    val stemScore = when (element) {
+        run.mound.unse.manse.Element.WOOD  -> 0.75f
+        run.mound.unse.manse.Element.FIRE  -> 0.90f
+        run.mound.unse.manse.Element.EARTH -> 0.65f
+        run.mound.unse.manse.Element.METAL -> 0.70f
+        run.mound.unse.manse.Element.WATER -> 0.80f
+    }
+    val wave = kotlin.math.sin(index * 0.9).toFloat() * 0.15f
+    return (stemScore + wave).coerceIn(0.4f, 1.0f)
 }
 
 @Composable

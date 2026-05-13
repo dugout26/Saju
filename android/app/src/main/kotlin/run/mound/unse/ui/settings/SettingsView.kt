@@ -56,7 +56,12 @@ import run.mound.unse.ui.theme.Surface
  * 로그아웃/계정 삭제는 Q2 (Auth) 합의 후 wiring.
  */
 @Composable
-fun SettingsView(nickname: String, isPremium: Boolean, modifier: Modifier = Modifier) {
+fun SettingsView(
+    nickname: String,
+    isPremium: Boolean,
+    modifier: Modifier = Modifier,
+    onEditSaju: (() -> Unit)? = null
+) {
     var pushEnabled by remember { mutableStateOf(true) }
 
     Column(
@@ -121,6 +126,7 @@ fun SettingsView(nickname: String, isPremium: Boolean, modifier: Modifier = Modi
         HorizontalDivider(color = Line)
 
         SectionHeader("계정")
+        SettingsRow(Icons.Outlined.AccountCircle, "사주 정보 편집", onClick = onEditSaju)
         SettingsRow(Icons.Outlined.Logout, "로그아웃") { /* TODO Q2 후 wiring */ }
         SettingsRow(Icons.Outlined.AccountCircle, "계정 삭제", destructive = true) { /* TODO */ }
         Spacer(Modifier.height(Spacing.xxxl))

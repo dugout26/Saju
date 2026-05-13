@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- ShareCardView가 캐시 디렉토리에 PNG 파일 만들고 FileProvider URI로 공유 -->
+    <cache-path
+        name="share_cache"
+        path="share/" />
+</paths>
