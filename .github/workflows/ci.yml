@@ -137,6 +137,9 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
+      - name: detekt (baseline 적용)
+        run: ./gradlew :app:detekt
+
       - name: Unit tests
         run: ./gradlew test
 
