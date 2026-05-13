@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import run.mound.unse.ui.components.PrimaryButton
+import run.mound.unse.ui.legal.LegalKind
 import run.mound.unse.ui.theme.Bg
 import run.mound.unse.ui.theme.Ink1
 import run.mound.unse.ui.theme.Ink2
@@ -58,7 +59,11 @@ import run.mound.unse.ui.theme.Surface
  * v1: UI만. 실제 결제는 Q3 (Play Billing) 합의 후.
  */
 @Composable
-fun PaywallView(onClose: () -> Unit, onPurchase: (plan: String) -> Unit) {
+fun PaywallView(
+    onClose: () -> Unit,
+    onPurchase: (plan: String) -> Unit,
+    onLegal: ((LegalKind) -> Unit)? = null
+) {
     var selectedPlan by remember { mutableStateOf("yearly") }
 
     Column(
@@ -142,14 +147,34 @@ fun PaywallView(onClose: () -> Unit, onPurchase: (plan: String) -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = Spacing.sm)
             )
-            Row(
-                modifier = Modifier.padding(vertical = Spacing.md),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.lg)
-            ) {
-                Text("이용약관", color = Ink3, style = MaterialTheme.typography.labelSmall)
-                Text("개인정보처리방침", color = Ink3, style = MaterialTheme.typography.labelSmall)
-            }
+            LegalLinksRow(onLegal = onLegal)
         }
+    }
+}
+
+/** 결제 직전 화면 컴플라이언스 — 약관/개인정보 접근. CR fix: 클릭 가능 + LegalKind 라우팅. */
+@Composable
+private fun LegalLinksRow(onLegal: ((LegalKind) -> Unit)?) {
+    Row(
+        modifier = Modifier.padding(vertical = Spacing.md),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.lg)
+    ) {
+        Text(
+            "이용약관",
+            color = Ink3,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.clickable(enabled = onLegal != null) {
+                onLegal?.invoke(LegalKind.TERMS)
+            }
+        )
+        Text(
+            "개인정보처리방침",
+            color = Ink3,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.clickable(enabled = onLegal != null) {
+                onLegal?.invoke(LegalKind.PRIVACY)
+            }
+        )
     }
 }
 

@@ -52,9 +52,14 @@ import java.time.LocalDate
 fun TimelineView(
     daeWoon: List<DaeWoon>,
     isPremium: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    birthYear: Int? = null
 ) {
-    val currentAge = remember { LocalDate.now().year - 1990 } // 임시 — UserProfile.birthYear 추가 후 교체
+    // CR fix: 1990 hardcode 제거. birthYear 모를 때(현실적으로 없음 — Q4 wiring 전 default) 첫 대운
+    // startYear 기반으로 역산 — `birthYear ≈ daeWoon[0].startYear - daeWoon[0].startAge`.
+    val currentYear = remember { LocalDate.now().year }
+    val resolvedBirthYear = birthYear ?: daeWoon.firstOrNull()?.let { it.startYear - it.startAge }
+    val currentAge = resolvedBirthYear?.let { currentYear - it } ?: 0
 
     Column(
         modifier = modifier

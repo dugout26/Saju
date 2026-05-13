@@ -41,6 +41,8 @@ import run.mound.unse.ui.theme.Peach
 import run.mound.unse.ui.theme.Rose
 import run.mound.unse.ui.theme.Spacing
 import java.time.LocalDate
+import java.time.format.TextStyle
+import java.util.Locale
 
 /**
  * 하루결 DailyFortuneView — 오늘의 운세.
@@ -82,7 +84,9 @@ fun DailyFortuneView(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Tag(text = "${today.monthValue}월 ${today.dayOfMonth}일 · ${today.dayOfWeek.name.take(3)}")
+                // CR fix: dayOfWeek.name.take(3) → "MON" 영문 약어. 한국어 UI에 맞게 "월"로.
+                val weekday = today.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.KOREAN)
+                Tag(text = "${today.monthValue}월 ${today.dayOfMonth}일 · $weekday")
                 Spacer(Modifier.height(Spacing.md))
                 Text(
                     "오늘의\n행운 색",

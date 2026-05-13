@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import run.mound.unse.ui.components.Tag
+import run.mound.unse.ui.legal.LegalKind
 import run.mound.unse.ui.theme.Bg
 import run.mound.unse.ui.theme.Ink1
 import run.mound.unse.ui.theme.Ink2
@@ -60,7 +61,8 @@ fun SettingsView(
     nickname: String,
     isPremium: Boolean,
     modifier: Modifier = Modifier,
-    onEditSaju: (() -> Unit)? = null
+    onEditSaju: (() -> Unit)? = null,
+    onLegal: ((LegalKind) -> Unit)? = null
 ) {
     var pushEnabled by remember { mutableStateOf(true) }
 
@@ -120,9 +122,10 @@ fun SettingsView(
 
         SectionHeader("지원")
         SettingsRow(Icons.Outlined.Email, "문의하기", subtitle = "contact@mound.run") { /* TODO mailto */ }
-        SettingsRow(Icons.Outlined.Description, "이용약관") { /* TODO LegalDocumentView */ }
-        SettingsRow(Icons.Outlined.Description, "개인정보처리방침") { }
-        SettingsRow(Icons.Outlined.Description, "면책 고지") { }
+        // CR fix: legal row click no-op → onLegal로 LegalDocumentView 라우팅. 개인정보 접근은 출시 블로커.
+        SettingsRow(Icons.Outlined.Description, "이용약관") { onLegal?.invoke(LegalKind.TERMS) }
+        SettingsRow(Icons.Outlined.Description, "개인정보처리방침") { onLegal?.invoke(LegalKind.PRIVACY) }
+        SettingsRow(Icons.Outlined.Description, "면책 고지") { onLegal?.invoke(LegalKind.DISCLAIMER) }
         HorizontalDivider(color = Line)
 
         SectionHeader("계정")

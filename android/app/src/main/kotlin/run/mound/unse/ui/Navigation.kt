@@ -1,18 +1,24 @@
 package run.mound.unse.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import run.mound.unse.manse.BirthInput
 import run.mound.unse.manse.DaeWoon
 import run.mound.unse.manse.SajuComputed
 import run.mound.unse.ui.analyzing.AnalyzingView
 import run.mound.unse.ui.birthinfo.BirthInfoView
+import run.mound.unse.ui.legal.LegalDocumentView
+import run.mound.unse.ui.legal.LegalKind
 import run.mound.unse.ui.login.LoginView
 import run.mound.unse.ui.main.MainTabView
 import run.mound.unse.ui.onboarding.OnboardingView
@@ -35,6 +41,8 @@ object Routes {
     const val MAIN = "main"
     const val EDIT_SAJU = "edit_saju"
     const val SHARE = "share"
+    const val LEGAL = "legal/{kind}"
+    fun legal(kind: LegalKind) = "legal/${kind.name}"
 }
 
 @Composable
@@ -61,38 +69,58 @@ fun AppNavigation() {
             })
         }
         composable(Routes.ANALYZING) {
-            val input = pendingInput ?: return@composable
+            // CR fix: 빈 화면 회피 — pendingInput null 시 BIRTH_INFO로 안전 redirect
+            // (앱 강제 종료 후 deep-link 진입 등의 엣지 케이스).
+            val input = pendingInput
+            if (input == null) { RedirectToBirthInfo(nav); return@composable }
             AnalyzingView(input = input, onComplete = { saju, daeWoon ->
                 pendingSaju = saju to daeWoon
-                nav.navigate(Routes.MAIN) {
-                    popUpTo(Routes.LOGIN) { inclusive = false }
-                }
+                nav.navigate(Routes.MAIN) { popUpTo(Routes.LOGIN) { inclusive = false } }
             })
         }
         composable(Routes.MAIN) {
-            val (saju, daeWoon) = pendingSaju ?: return@composable
+            val pair = pendingSaju
+            if (pair == null) { RedirectToBirthInfo(nav); return@composable }
+            val (saju, daeWoon) = pair
             MainTabView(
                 saju = saju,
                 daeWoon = daeWoon,
                 nickname = nickname,
+                birthYear = pendingInput?.year,
                 onEditSaju = { nav.navigate(Routes.EDIT_SAJU) },
-                onShare = { nav.navigate(Routes.SHARE) }
+                onShare = { nav.navigate(Routes.SHARE) },
+                onLegal = { kind -> nav.navigate(Routes.legal(kind)) }
             )
         }
         composable(Routes.EDIT_SAJU) {
-            val current = pendingInput ?: return@composable
+            val current = pendingInput
+            if (current == null) { RedirectToBirthInfo(nav); return@composable }
             EditSajuView(
                 initial = current,
                 onSave = { updated ->
-                    // Q3/Q4 wiring 전 — 로컬 state만 갱신, recompute는 후속.
                     pendingInput = updated
                     nickname = updated.nickname.ifBlank { "사용자" }
                     nav.popBackStack()
                 }
             )
         }
-        composable(Routes.SHARE) {
-            ShareCardView(nickname = nickname)
+        composable(Routes.SHARE) { ShareCardView(nickname = nickname) }
+        composable(
+            Routes.LEGAL,
+            arguments = listOf(navArgument("kind") { type = NavType.StringType })
+        ) { entry ->
+            val name = entry.arguments?.getString("kind")
+            val kind = LegalKind.entries.firstOrNull { it.name == name } ?: LegalKind.TERMS
+            LegalDocumentView(kind = kind)
+        }
+    }
+}
+
+@Composable
+private fun RedirectToBirthInfo(nav: NavHostController) {
+    LaunchedEffect(Unit) {
+        nav.navigate(Routes.BIRTH_INFO) {
+            popUpTo(Routes.BIRTH_INFO) { inclusive = true }
         }
     }
 }

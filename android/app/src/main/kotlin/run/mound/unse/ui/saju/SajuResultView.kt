@@ -86,19 +86,21 @@ fun SajuResultView(saju: SajuComputed, nickname: String, modifier: Modifier = Mo
 
 @Composable
 private fun PillarRow(saju: SajuComputed) {
-    val pillars = listOfNotNull(
+    // CR fix: listOfNotNull은 Pair 자체 null만 거름 — Pair 내부 null pillar는 통과해 `pillar!!` NPE.
+    // saju.hour가 null이면 시주 entry 자체를 drop.
+    val pillars = listOf(
         "시주" to saju.hour,
         "일주" to saju.day,
         "월주" to saju.month,
         "년주" to saju.year
-    )
+    ).mapNotNull { (label, pillar) -> pillar?.let { label to it } }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         pillars.forEach { (label, pillar) ->
-            PillarCell(label, pillar!!)
+            PillarCell(label, pillar)
         }
     }
 }

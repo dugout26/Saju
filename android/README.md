@@ -31,6 +31,7 @@
 
 ## iOS와의 관계
 
-- 도메인 로직(만세력 계산)은 deterministic이라 Swift/Kotlin 결과 1:1 일치 검증됨.
+- 도메인 로직(만세력 계산)은 deterministic이라 **양력 fixture 기준** Swift/Kotlin 결과 1:1 일치 검증됨 (`ManseTest.kt` 29건).
+  음력 입력은 현재 `lunarToSolar()`가 stub 상태라 `IllegalArgumentException` 발생 — full lookup table은 후속.
 - Supabase 백엔드, Edge Functions, DB 스키마는 iOS와 100% 공유.
 - 사용자 데이터(SajuProfile, 구독 상태 등)는 Supabase에 있으므로 플랫폼 간 동기화 자동.

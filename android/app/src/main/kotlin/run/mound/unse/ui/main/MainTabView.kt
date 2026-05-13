@@ -23,6 +23,7 @@ import run.mound.unse.manse.DaeWoon
 import run.mound.unse.manse.SajuComputed
 import run.mound.unse.ui.chat.ChatView
 import run.mound.unse.ui.daily.DailyFortuneView
+import run.mound.unse.ui.legal.LegalKind
 import run.mound.unse.ui.saju.SajuResultView
 import run.mound.unse.ui.settings.SettingsView
 import run.mound.unse.ui.timeline.TimelineView
@@ -40,13 +41,16 @@ private enum class Tab(val label: String, val icon: ImageVector) {
 }
 
 @Composable
+@Suppress("LongParameterList")  // 5탭 + 콜백 다수 — Compose 합성 root에서 흔한 패턴
 fun MainTabView(
     saju: SajuComputed,
     daeWoon: List<DaeWoon>,
     nickname: String,
     isPremium: Boolean = false,
+    birthYear: Int? = null,
     onEditSaju: (() -> Unit)? = null,
-    onShare: (() -> Unit)? = null
+    onShare: (() -> Unit)? = null,
+    onLegal: ((LegalKind) -> Unit)? = null
 ) {
     var selected by remember { mutableStateOf(Tab.SAJU) }
 
@@ -73,13 +77,19 @@ fun MainTabView(
                 onShare = onShare
             )
             Tab.SAJU -> SajuResultView(saju = saju, nickname = nickname, modifier = mod)
-            Tab.TIMELINE -> TimelineView(daeWoon = daeWoon, isPremium = isPremium, modifier = mod)
+            Tab.TIMELINE -> TimelineView(
+                daeWoon = daeWoon,
+                isPremium = isPremium,
+                birthYear = birthYear,
+                modifier = mod
+            )
             Tab.CHAT -> ChatView(modifier = mod)
             Tab.SETTINGS -> SettingsView(
                 nickname = nickname,
                 isPremium = isPremium,
                 modifier = mod,
-                onEditSaju = onEditSaju
+                onEditSaju = onEditSaju,
+                onLegal = onLegal
             )
         }
     }
