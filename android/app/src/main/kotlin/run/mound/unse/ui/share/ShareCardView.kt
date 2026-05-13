@@ -1,5 +1,8 @@
 package run.mound.unse.ui.share
 
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -22,13 +25,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 import run.mound.unse.ui.components.PrimaryButton
 import run.mound.unse.ui.theme.Bg
 import run.mound.unse.ui.theme.Cream
@@ -44,12 +58,15 @@ import java.util.Locale
 /**
  * 하루결 ShareCardView — iOS `ShareCardView.swift` 대응.
  *
- * v1: 카드 UI 1:1 포팅 + Lavender 테마. PNG 캡처 + FileProvider 공유는 후속
- * (Compose graphicsLayer API + Q4 결정 후 wiring).
+ * Compose `graphicsLayer` 로 카드 캡처 → cache PNG → FileProvider URI → ACTION_SEND.
+ * v1: Lavender 테마 1개만. FortuneTheme 전체 포팅은 후속.
  */
 @Composable
 fun ShareCardView(nickname: String) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val graphicsLayer = rememberGraphicsLayer()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -61,20 +78,53 @@ fun ShareCardView(nickname: String) {
     ) {
         Text("공유하기", style = MaterialTheme.typography.headlineLarge, color = Ink1)
 
+        // graphicsLayer로 캡처 가능한 컨테이너
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(0.8f)
                 .clip(RoundedCornerShape(28.dp))
+                .drawWithContent {
+                    graphicsLayer.record { this@drawWithContent.drawContent() }
+                    drawLayer(graphicsLayer)
+                }
         ) {
             ShareCard(nickname = nickname)
         }
 
         PrimaryButton(title = "다른 앱으로 공유") {
-            // TODO: graphicsLayer로 카드 캡처 → cache PNG → FileProvider URI → ACTION_SEND
-            Toast.makeText(context, "이미지 공유 기능 준비 중", Toast.LENGTH_SHORT).show()
+            scope.launch {
+                val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
+                val uri = withContext(Dispatchers.IO) { saveBitmapToCache(context, bitmap) }
+                if (uri == null) {
+                    Toast.makeText(context, "이미지 생성 실패", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                val share = Intent(Intent.ACTION_SEND).apply {
+                    type = "image/png"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(Intent.createChooser(share, "공유"))
+            }
         }
     }
+}
+
+/** PNG로 캐시 dir에 저장 후 FileProvider URI 반환. */
+private fun saveBitmapToCache(context: Context, bitmap: Bitmap): android.net.Uri? {
+    return runCatching {
+        val dir = File(context.cacheDir, "share").apply { mkdirs() }
+        val file = File(dir, "saju-${System.currentTimeMillis()}.png")
+        FileOutputStream(file).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+        }
+        FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+    }.getOrNull()
 }
 
 /**
