@@ -152,6 +152,14 @@ class ManseTest {
         }
     }
 
+    // MARK: - DailyFortuneEngine
+
+    @Test
+    fun `DailyFortuneEngine dayPillarString 2000-01-01 = 戊午`() {
+        val s = DailyFortuneEngine.dayPillarString(java.time.LocalDate.of(2000, 1, 1))
+        assertEquals("戊午", s)
+    }
+
     // MARK: - CR-8 BirthInput.isValid (LocalDate 검증)
 
     @Test

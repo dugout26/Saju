@@ -155,3 +155,71 @@ swiftlint --strict
 # Edge Function 개별 배포
 supabase functions deploy asn-v2-webhook
 ```
+
+---
+
+## 9. Android 출시 준비 (PR #68 — 진행 중)
+
+### 9-1. 현재 상태 (2026-05-13)
+
+| 항목 | 상태 | 비고 |
+|---|---|---|
+| Compose UI 모든 화면 | ✅ | iOS 1:1 — Onboarding/Login/BirthInfo/Analyzing/MainTab(5탭)/EditSaju/Share/ForceUpdate |
+| 만세력 엔진 + 20+개 단위 테스트 | ✅ | iOS 결과와 1:1 |
+| Release build + R8/ProGuard | ✅ | `./gradlew :app:assembleRelease` 통과 |
+| App icon (Adaptive) | ✅ | iOS PNG 재활용 — `mipmap-{dpi}/ic_launcher_foreground.png` |
+| Splash screen | ✅ | core-splashscreen 1.0.1 + Theme.Unse.Starting |
+| detekt + baseline | ✅ | `./gradlew :app:detekt` 통과 (37건 baseline) |
+| Q1-Q6 SDK 정책 | ⏳ | CodeRabbit 답변 대기 (Auth/Network/DB/Push/Billing/Ads) |
+
+### 9-2. Android 사용자 환경 작업
+
+| 항목 | 상태 | 비고 |
+|---|---|---|
+| **Keystore 생성** | ❌ | `keytool -genkey -v -keystore unse-release.jks -keyalg RSA -keysize 4096 -validity 10000 -alias unse` — Play Console 업로드, 비밀번호는 1Password 등에 |
+| 환경 변수 (release signing) | ❌ | `UNSE_KEYSTORE_PATH`, `UNSE_KEYSTORE_PASSWORD`, `UNSE_KEY_ALIAS`, `UNSE_KEY_PASSWORD` |
+| **Google Play Console 등록** | ❌ | Internal → Closed → Production. 첫 업로드는 internal testing track |
+| **google-services.json** | ❌ | Firebase Console에서 Android 앱 추가 (`run.mound.unse`) → JSON → `android/app/google-services.json` (gitignore됨) |
+| **AdMob production unit ID** | ❌ | AdMob 콘솔 reward 단위 ID → Release BuildConfig 주입 |
+| **FCM Server Key** | ❌ | Firebase Cloud Messaging → Server Key → Supabase `send-push` env 등록 |
+| **Kakao Native App Key (Android)** | ❌ | Kakao Developers → Android 플랫폼 + 키해시 → `local.properties` `KAKAO_APP_KEY` |
+| **Google OAuth Web Client ID** | ❌ | Google Cloud → OAuth 2.0 (Web) → `gradle.properties` `GOOGLE_WEB_CLIENT_ID` |
+| Privacy/약관 페이지 | ✅ | iOS 공유 — `https://dugout26.github.io/unse-legal/` |
+| Play Console Data safety 폼 | ❌ | Q1-Q6 합의 후 |
+
+### 9-3. Q1-Q6 정책 결정 사항 (CodeRabbit 답변 대기)
+
+PR #68 description 참조. 결정 전엔 SDK 통합 시작 X (Karpathy 1 — push back).
+
+| # | 질문 | 옵션 |
+|---|---|---|
+| Q1 | Auth — Kakao + Google + Supabase Auth 흐름 | A. Supabase Auth만 / B. Custom OIDC bridge |
+| Q2 | Network — Supabase Kotlin SDK vs Retrofit | A. Kotlin client / B. Retrofit + manual |
+| Q3 | Billing — Play Billing v6 + RTDN | A. RevenueCat / B. Direct |
+| Q4 | DB — Room vs SQLDelight | A. Room / B. SQLDelight |
+| Q5 | Push — FCM token schema | A. 기존 `users.push_token` / B. 신규 `device_tokens` |
+| Q6 | Ads — AdMob vs Kakao AdFit | A. AdMob only / B. AdMob + AdFit fallback |
+
+### 9-4. Android 참고 명령어
+
+```bash
+# Debug 빌드 + emulator 설치
+cd android && ./gradlew :app:assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+
+# Release 빌드 (R8 + ProGuard)
+cd android && ./gradlew :app:assembleRelease
+
+# 단위 테스트 (20+건 만세력)
+cd android && ./gradlew :app:testDebugUnitTest
+
+# detekt (baseline 적용)
+cd android && ./gradlew :app:detekt
+
+# detekt baseline 갱신 (정당한 violation 추가 시)
+cd android && ./gradlew :app:detektBaseline
+
+# UI hierarchy dump (좌표 확인)
+adb shell uiautomator dump /sdcard/ui.xml && adb pull /sdcard/ui.xml /tmp/ui.xml
+```
+

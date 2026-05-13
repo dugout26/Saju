@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- iOS App Icon 라벤더 톤과 동일한 single solid background -->
+    <color name="ic_launcher_background">#E9E2FF</color>
+</resources>

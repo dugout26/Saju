@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Splash 표시용 (Android 12+ Splash API + pre-12 compat) — core-splashscreen 백포트 -->
+    <style name="Theme.Unse.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/ic_launcher_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Unse</item>
+    </style>
+
+    <!-- 메인 테마 — 기존 그대로 (light, no action bar) -->
+    <style name="Theme.Unse" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

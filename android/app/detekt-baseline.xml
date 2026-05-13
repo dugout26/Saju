@@ -1,0 +1,39 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>EnumNaming:Models.kt$Branch$丑 : Branch</ID>
+    <ID>EnumNaming:Models.kt$Branch$亥 : Branch</ID>
+    <ID>EnumNaming:Models.kt$Branch$午 : Branch</ID>
+    <ID>EnumNaming:Models.kt$Branch$卯 : Branch</ID>
+    <ID>EnumNaming:Models.kt$Branch$子 : Branch</ID>
+    <ID>EnumNaming:Models.kt$Branch$寅 : Branch</ID>
+    <ID>EnumNaming:Models.kt$Branch$巳 : Branch</ID>
+    <ID>EnumNaming:Models.kt$Branch$戌 : Branch</ID>
+    <ID>EnumNaming:Models.kt$Branch$未 : Branch</ID>
+    <ID>EnumNaming:Models.kt$Branch$申 : Branch</ID>
+    <ID>EnumNaming:Models.kt$Branch$辰 : Branch</ID>
+    <ID>EnumNaming:Models.kt$Branch$酉 : Branch</ID>
+    <ID>EnumNaming:Models.kt$Stem$丁 : Stem</ID>
+    <ID>EnumNaming:Models.kt$Stem$丙 : Stem</ID>
+    <ID>EnumNaming:Models.kt$Stem$乙 : Stem</ID>
+    <ID>EnumNaming:Models.kt$Stem$壬 : Stem</ID>
+    <ID>EnumNaming:Models.kt$Stem$己 : Stem</ID>
+    <ID>EnumNaming:Models.kt$Stem$庚 : Stem</ID>
+    <ID>EnumNaming:Models.kt$Stem$戊 : Stem</ID>
+    <ID>EnumNaming:Models.kt$Stem$甲 : Stem</ID>
+    <ID>EnumNaming:Models.kt$Stem$癸 : Stem</ID>
+    <ID>EnumNaming:Models.kt$Stem$辛 : Stem</ID>
+    <ID>FunctionOnlyReturningConstant:Manse.kt$Manse$fun lunarToSolar(y: Int, m: Int, d: Int): Triple&lt;Int, Int, Int&gt;?</ID>
+    <ID>LongMethod:DailyFortuneView.kt$@Composable fun DailyFortuneView( saju: SajuComputed, nickname: String, modifier: Modifier = Modifier, onShare: (() -&gt; Unit)? = null )</ID>
+    <ID>LongMethod:PaywallView.kt$@Composable fun PaywallView(onClose: () -&gt; Unit, onPurchase: (plan: String) -&gt; Unit)</ID>
+    <ID>LongMethod:ShareCardView.kt$@Composable private fun ShareCard(nickname: String)</ID>
+    <ID>MatchingDeclarationName:LegalDocumentView.kt$LegalKind</ID>
+    <ID>MatchingDeclarationName:Navigation.kt$Routes</ID>
+    <ID>TooManyFunctions:Manse.kt$Manse</ID>
+    <ID>UnusedParameter:Manse.kt$Manse$d: Int</ID>
+    <ID>UnusedParameter:Manse.kt$Manse$m: Int</ID>
+    <ID>UnusedParameter:Manse.kt$Manse$minute: Int? = null</ID>
+    <ID>UnusedParameter:Manse.kt$Manse$y: Int</ID>
+  </CurrentIssues>
+</SmellBaseline>
