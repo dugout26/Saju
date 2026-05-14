@@ -160,7 +160,7 @@ Network (Supabase Edge) / SwiftData
 
 ```bash
 # 프로젝트 재생성 (project.yml 변경 후 필수)
-xcodegen generate
+cd ios && xcodegen generate
 
 # 시뮬레이터 빌드 (코드 변경 후 항상 검증)
 xcodebuild -project Unse.xcodeproj -scheme Unse \
