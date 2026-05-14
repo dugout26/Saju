@@ -1,4 +1,4 @@
-# HANDOFF — 2026-05-12
+# HANDOFF — 2026-05-13
 
 > 회사컴 → 집컴 인계 문서. 다음 세션은 이 파일을 먼저 읽고 시작.
 
@@ -23,6 +23,22 @@ Firebase Performance/Analytics, 다크모드/Dynamic Type, APIClientProtocol DI,
 | [#62](https://github.com/dugout26/Saju/pull/62) | ⏳ 대기 | `fix`: 로그인 버튼 폰트 통일(SignInWithAppleButton → 커스텀 Apple HIG 버튼 + Pretendard) + 로그아웃 stale `refreshedUser` |
 | [#63](https://github.com/dugout26/Saju/pull/63) | ⏳ 대기 | `fix(auth)`: 재로그인 시 서버 `saju_profiles` 자동 fetch → 로컬 복원. Manse deterministic으로 pillar 직렬화 우회 |
 
+### 2026-05-13 (Android 포팅 진행 + iOS App Store 항소)
+
+**iOS** — App Store 심사 거부 (Guideline 4.3(b) Spam). Resolution Center에 차별점(대화형 AI 풀이, 깊이감, 단정 표현 차단) 명시 답변 제출 (Option A). 1-3일 응답 대기.
+
+**Android PR #68** (`chore/monorepo-symmetric`) — 자율 후속 작업 3 commits:
+
+| Commit | 내용 |
+|---|---|
+| [a5531a9](https://github.com/dugout26/Saju/pull/68/commits/a5531a9) | 단위 테스트 8건 추가 (29 total) — DailyFortuneEngine KST TZ, 대운 boundary (Yang/Yin × Male/Female forward/backward, startAge≥1, startYear), 입춘 경계 (2020-02-04 당일/2020-02-03 전). @Preview 6건 (PrimaryButton/UnseCard/Tag/Segment/CheckBox/ShareCard). README 모바일(iOS+Android) framing + Android 빌드/만세력 동등성/산출물 섹션. emulator 캡처 3장. |
+| [12af943](https://github.com/dugout26/Saju/pull/68/commits/12af943) | CR P1/P2 batch fix 7건 — SajuResultView NPE (listOfNotNull→mapNotNull + force-unwrap 제거), Navigation 빈화면→LaunchedEffect redirect + `RedirectToBirthInfo` helper + LEGAL route, TimelineView 1990 hardcode→birthYear 옵션 + daeWoon 역산, DailyFortuneView 한국어 요일 (`getDisplayName(SHORT, KOREAN)`), Settings/Paywall legal 라우팅 (`onLegal` 콜백 → `LegalDocumentView`), MainTabView birthYear/onLegal plumb. |
+| [472bddf](https://github.com/dugout26/Saju/pull/68/commits/472bddf) | HANDOFF.md §9 — 29 tests / Preview / Nav safety / Legal route 갱신. |
+
+**Stale CR comments (이미 fix됨, no action)**: `Models.kt isValid` year hardcode (Year.now() 적용됨), `Manse.kt` lunar fallback (IllegalArgumentException throw), forward distance branch (이미 존재), `android/.gitignore` Firebase rules, `.gitignore` line 27 GoogleService path.
+
+**검증**: `:app:compileDebugKotlin` ✅ `:app:testDebugUnitTest` 29 pass ✅ `:app:detekt` ✅.
+
 ---
 
 ## 2. 출시 전 체크리스트
@@ -37,6 +53,7 @@ Firebase Performance/Analytics, 다크모드/Dynamic Type, APIClientProtocol DI,
 - [x] App Store 메타데이터 초안 ([docs/app-store-metadata.md](docs/app-store-metadata.md), 305줄)
 - [x] PrivacyInfo.xcprivacy ([Unse/PrivacyInfo.xcprivacy](ios/Unse/PrivacyInfo.xcprivacy))
 - [ ] PR #62 + #63 머지 (CR + 사용자 시각 확인 후)
+- [ ] **App Store Resolution Center 답변 대기** — Guideline 4.3(b) Spam 항소 진행 중 (2026-05-13 제출, 1-3일 응답)
 
 ### 2-2. 사용자 환경 작업
 
